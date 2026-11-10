@@ -16,7 +16,8 @@ internal static class ImageCacheVerification
         try
         {
             var url = new Uri("https://img9.doubanio.com/view/photo/s_ratio_poster/public/test.webp");
-            using var stream = typeof(App).Assembly.GetManifestResourceStream("MikoApp.Anime.Assets.poster-1.jpg")!;
+            var imageResource = typeof(App).Assembly.GetManifestResourceNames().First(n => n.StartsWith("MikoApp.Anime.Assets.Demo.image-") && n.EndsWith(".webp"));
+            using var stream = typeof(App).Assembly.GetManifestResourceStream(imageResource)!;
             using var buffer = new MemoryStream();
             await stream.CopyToAsync(buffer);
             var image = buffer.ToArray();

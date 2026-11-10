@@ -1,0 +1,36 @@
+@page "/settings"
+@namespace MikoApp.Anime.Pages
+@inherits AsyncPage
+@inject AnimeSettings SettingsStore
+<IonPage>
+    <PageHeader Title="系统设置" BackHref="/user" />
+    <IonContent Class="soft-content"><div class="page-padding settings-page">
+        <IonList>
+            <IonItem Lines="none"><IonToggle Class="demo-toggle" Checked="@_demo" CheckedChanged="ToggleDemo" Justify="space-between">演示模式</IonToggle></IonItem>
+        </IonList>
+        <p class="settings-help">@(_demo ? "使用内置番剧和图片，无需联网。所有分集均播放同一个测试短片。" : "使用真实服务器数据，浏览和播放需要网络连接。")</p>
+        @if (!_demo)
+        {
+            <IonList><IonItem Lines="none"><IonInput Class="server-address" Label="服务器地址" LabelPlacement="stacked" Type="url" Placeholder="https://example.com" @bind-Value="_server" /></IonItem></IonList>
+            <p class="settings-help">支持服务发现 JSON 地址或 API 根地址。</p>
+            <IonButton Class="reset-server" Fill="clear" Size="small" OnClick="ResetServer">恢复默认地址</IonButton>
+        }
+        <IonButton Class="save-settings" Expand="block" OnClick="Save">保存设置</IonButton>
+        <PageStatus Message="@(Error ?? _message ?? SettingsStore.StorageError)" />
+        <p class="settings-help">切换模式或服务器后需要重新登录。观看记录按模式和服务器分别保存。</p>
+    </div></IonContent>
+</IonPage>
+@code {
+    private bool _demo;
+    private string? _server, _message;
+    protected override void OnInitialized() { _demo = SettingsStore.DemoMode; _server = SettingsStore.ServerAddress; }
+    private void ToggleDemo(bool value) { _demo = value; _message = null; Error = null; StateHasChanged(); }
+    private void ResetServer() { _server = AnimeSettings.DefaultServerAddress; _message = null; StateHasChanged(); }
+    private Task Save() => Run(() =>
+    {
+        Store.ApplySettings(_demo, _demo ? SettingsStore.ServerAddress : _server, SettingsStore);
+        _server = SettingsStore.ServerAddress;
+        _message = _demo ? "已保存，演示模式已开启。" : "已保存，在线模式已开启。";
+        return Task.CompletedTask;
+    });
+}

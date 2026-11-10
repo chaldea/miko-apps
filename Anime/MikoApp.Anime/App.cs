@@ -27,7 +27,7 @@ public static class App
     {
         var builder = MikoAppBuilder.CreateDefault();
 
-        builder.UseTitle("Anime · 追番时光");
+        builder.UseTitle("Anime");
         // Phone-portrait viewport showcases the Ionic mobile layout.
         builder.UseSize(390, 844);
 
@@ -42,7 +42,8 @@ public static class App
         {
             Timeout = TimeSpan.FromSeconds(30),
         });
-        builder.Services.AddSingleton<LanercClient>();
+        builder.Services.AddSingleton<AnimeSettings>();
+        builder.Services.AddSingleton(sp => new LanercClient(sp.GetRequiredService<AnimeSettings>()));
         builder.Services.AddSingleton<AnimeStore>();
         builder.Services.AddSingleton<AnimeNavigator>();
         builder.AddResourceAssembly(typeof(App).Assembly);

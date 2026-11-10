@@ -19,7 +19,7 @@ namespace MikoApp.Anime.Android;
 // display-size changes and foldable resizes. Without it Android recreates the Activity and
 // the app rebuilds from scratch, losing the navigation stack and page state.
 [Activity(
-    Label = "MikoApp.Anime",
+    Label = "Anime",
     MainLauncher = true,
     Icon = "@mipmap/appicon",
     RoundIcon = "@mipmap/appicon_round",

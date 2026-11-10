@@ -6,7 +6,7 @@
     <IonSegment Class="week-segment" @bind-Value="_day">@for (var i = 0; i < Days.Length; i++) { <IonSegmentButton Value="@i.ToString()"><IonLabel>@Days[i]</IonLabel></IonSegmentButton> }</IonSegment>
     <IonContent><div class="page-padding">
         <PageStatus Busy="@Busy" Message="@Error" OnRetry="Load" />
-        <PosterGrid Titles="@Current" ShowSchedule="@Store.IsPreview" />
+        <PosterGrid Titles="@Current" />
         @if (!Busy && Current.Count == 0 && Error is null) { <div class="empty-state">今日暂无更新，看看其他日期吧</div> }
     </div></IonContent>
 </IonPage>

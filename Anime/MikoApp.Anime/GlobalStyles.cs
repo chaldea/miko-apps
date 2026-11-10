@@ -15,7 +15,6 @@ internal static class GlobalStyles
         styleSheet.Add(new CssObject
         {
             [".poster-grid .poster-column"] = new() { FlexGrow = 0, FlexShrink = 0, FlexBasis = Length.Percent(33.333f), Width = Length.Percent(33.333f), MaxWidth = Length.Percent(33.333f) },
-            [".poster-image"] = new() { Height = Length.Auto, AspectRatio = new AspectRatio(0.735f) },
             [".page-padding, .auth-page"] = new() { MaxWidth = Length.Px(920), MarginLeft = Length.Auto, MarginRight = Length.Auto },
             [".ion-card .card-native"] = new()
             {
@@ -87,7 +86,7 @@ internal static class GlobalStyles
             [".poster-image"] = new()
             {
                 Width = Length.Percent(100),
-                Height = Length.Px(154),
+                Height = Length.Auto,
                 BorderRadius = 6
             },
             [".poster-title"] = new()
@@ -116,7 +115,7 @@ internal static class GlobalStyles
             [".banner-image"] = new()
             {
                 Width = Length.Percent(100),
-                Height = Length.Px(180)
+                Height = Length.Auto
             },
             [".quick-links .ion-button"] = new()
             {
@@ -136,6 +135,9 @@ internal static class GlobalStyles
             {
                 Display = Display.Flex,
                 OverflowX = Overflow.Auto,
+                MinHeight = Length.Px(44),
+                PaddingBottom = Length.Px(12),
+                FlexShrink = 0,
                 Gap = Length.Px(3),
                 MarginBottom = Length.Px(6)
             },
@@ -180,7 +182,8 @@ internal static class GlobalStyles
             [".ranking-image"] = new()
             {
                 Width = Length.Px(96),
-                Height = Length.Px(132),
+                Height = Length.Auto,
+                AlignSelf = AlignSelf.FlexStart,
                 FlexShrink = 0,
                 BorderRadius = 5
             },
@@ -226,6 +229,19 @@ internal static class GlobalStyles
             {
                 BoxShadow = new List<BoxShadow>(),
                 BorderBottom = new BorderSide(Length.Px(0), BorderStyle.None, Color.Transparent)
+            },
+            [".settings-page"] = new()
+            {
+                PaddingLeft = Length.Px(16) + Length.SafeAreaInsetLeft,
+                PaddingRight = Length.Px(16) + Length.SafeAreaInsetRight
+            },
+            [".settings-help"] = new()
+            {
+                FontSize = Length.Px(13), Color = Color.FromHex("#777982"), Margin = new Margin(12, 0)
+            },
+            [".demo-notice"] = new()
+            {
+                Display = Display.Flex, AlignItems = AlignItems.Center, JustifyContent = JustifyContent.SpaceBetween
             },
             [".user-header .ion-toolbar, .user-header .toolbar-background"] = new()
             {
@@ -299,8 +315,9 @@ internal static class GlobalStyles
             },
             [".library-image"] = new()
             {
-                Width = Length.Px(130),
-                Height = Length.Px(78),
+                Width = Length.Px(72),
+                Height = Length.Auto,
+                AlignSelf = AlignSelf.FlexStart,
                 BorderRadius = 5
             },
             [".library-genre"] = new()
@@ -524,8 +541,10 @@ internal static class GlobalStyles
             [".status-row"] = new() { Display = Display.Flex, AlignItems = AlignItems.Center, JustifyContent = JustifyContent.SpaceBetween, Padding = new Padding(4, 6), Gap = Length.Px(8), BackgroundColor = Color.FromHex("#f0faff"), BorderRadius = 6, MarginBottom = Length.Px(8) },
             [".status-row .ion-note"] = new() { FlexGrow = 1, FlexShrink = 1, MinWidth = Length.Px(0), LineHeight = Length.Px(18) },
             [".status-row .ion-button"] = new() { FlexShrink = 0 },
-            [".home-banner"] = new() { Height = Length.Px(184), MarginBottom = Length.Px(8) },
-            [".home-banner .ion-slide"] = new() { Display = Display.Block },
+            // Keep the viewport outside IonSlides so its positioned track stays inside the clip.
+            [".home-banner-frame"] = new() { Width = Length.Percent(100), AspectRatio = new AspectRatio(16, 9), MarginBottom = Length.Px(8), Overflow = Overflow.Hidden },
+            [".home-banner"] = new() { Height = Length.Percent(100) },
+            [".home-banner .swiper-slide"] = new() { Display = Display.Block },
             [".home-segment"] = new() { OverflowX = Overflow.Auto },
             [".home-segment .ion-segment-button"] = new() { FlexShrink = 0 },
             [".splash-page"] = new() { Display = Display.Flex, FlexDirection = FlexDirection.Column, AlignItems = AlignItems.Center, JustifyContent = JustifyContent.Center, MinHeight = Length.Px(680), Padding = new Padding(36, 24) },
@@ -557,8 +576,7 @@ internal static class GlobalStyles
         styleSheet.Add(new CssObject
         {
             [".poster-grid .poster-column"] = new() { FlexBasis = Length.Percent(16.666f), Width = Length.Percent(16.666f), MaxWidth = Length.Percent(16.666f) },
-            [".home-banner"] = new() { MaxWidth = Length.Px(560), Height = Length.Px(278), MarginLeft = Length.Auto, MarginRight = Length.Auto },
-            [".banner-image"] = new() { Height = Length.Px(274) },
+            [".home-banner-frame"] = new() { MaxWidth = Length.Px(560), MarginLeft = Length.Auto, MarginRight = Length.Auto },
             [".auth-page"] = new() { MaxWidth = Length.Px(460) },
         }, MediaCondition.MinWidth(700));
         return styleSheet;

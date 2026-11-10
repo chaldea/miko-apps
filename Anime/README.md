@@ -2,6 +2,8 @@
 
 基于 Miko.Ionic 的原生动漫应用。UI 由 Razor + SkiaSharp 绘制，视频使用 `Miko.Components.Player` 和系统解码器。
 
+应用显示名称统一为 Anime。Android、iOS 和桌面图标来自原版 APK 的启动图标，资源来源和重新提取方式见 [图标说明](Branding/README.md)。
+
 ## 运行
 
 在仓库根目录执行：
@@ -13,7 +15,9 @@ dotnet run --project Anime/MikoApp.Anime.Desktop
 dotnet run --project Anime/MikoApp.Anime.Simulator
 ```
 
-默认动态发现 Lanerc API 并加载线上内容。发现失败时明确显示内置预览，点击“重试”重新连接。离线演示：
+默认开启演示模式，无需联网。在“我的 → 系统设置”切换演示模式，点击“保存设置”生效并记住选择。关闭后显示服务器地址，默认 `http://uminainfo.cc/api.json`，沿用 Lanerc 的随机子域、备用入口和 DNS 服务发现；也可以填写其他发现 JSON 地址或 API 根地址。自定义地址失败不会连接默认服务，在线失败也不会自动回退到演示内容。
+
+诊断时可用环境变量覆盖启动模式（`1` 为演示，`0` 为在线；正常使用无需设置）：
 
 ```powershell
 $env:ANIME_OFFLINE = '1'
@@ -31,7 +35,9 @@ Remove-Item Env:ANIME_OFFLINE
 
 `LanercClient` 封装 API.md 的 36 个操作：域名发现/健康检查、签名、JSON AES-ECB、Protobuf/AES-GCM、账户与验证码、收藏、评论与弹幕、权益接口。Authorization 使用原始 token，密码使用 MD5；POST 的签名仍在 URL。HTTP 重定向关闭，错误保留 HTTP 状态、业务码、消息及重试时间。权益方法仅供后续接入，UI 不调用付费或兑换操作。
 
-`AnimeStore` 管理目录和会话，观看/搜索历史保存至系统 LocalApplicationData/MikoAnime/library.json；可用 `ANIME_DATA_DIR` 指定隔离目录。密码和 token 不写入磁盘，退出应用后需要重新登录。收藏仅在登录后同步，不把预览数据上传为真实收藏。
+`AnimeStore` 管理目录和会话，设置保存至 LocalApplicationData/MikoAnime/settings.json，观看/搜索历史按演示模式和服务器分别保存至 `library-*.json`；可用 `ANIME_DATA_DIR` 指定隔离目录。默认在线服务兼容读取旧 `library.json` 中的真实观看记录。密码和 token 不写入磁盘，切换模式或服务器会取消旧请求并退出登录，避免凭证跨服务器发送。
+
+演示模式在 API 客户端统一使用本地数据，账号、资料、收藏、评论仅在本机模拟；邮箱验证码固定为 `123456` 且不发送邮件。演示账号与评论仅保留本次会话，观看和搜索历史保留在本地。所有分集共用 `Assets/sample.mp4`，不保存真实媒体 URL 或视频文件。
 
 游客播放根据配置和分集标志进入验证码流程，使用 `expires_in` 管理有效期，不猜测 `expires_at` 的时间单位。弹幕云端颜色/位置枚举尚未确认，接口保留原始 JSON 参数；界面的弹幕明确标注“仅在本机显示”。旧播放接口 body sign、问答编码、付费语义等未知项不作推测。
 
@@ -49,7 +55,7 @@ Remove-Item Env:ANIME_OFFLINE
 ## 验证
 
 ```powershell
-# 隔离账户 fixture：协议、原生点击、输入、弹窗、播放及截图
+# 本地演示数据：协议、原生点击、输入、弹窗、播放及截图
 dotnet run --project Anime/MikoApp.Anime.Verification
 # iOS 组件模式的同一套视觉交互验证
 dotnet run --project Anime/MikoApp.Anime.Verification -- Anime/artifacts/verification-ios --ios
@@ -65,11 +71,15 @@ dotnet run --project Anime/MikoApp.Anime.Verification -- --live-images
 dotnet run --project Anime/MikoApp.Anime.Verification -- --live-images --allow-unavailable-images
 # 我的页面安全区：Android/iOS、游客/登录态、横竖屏及无安全区
 dotnet run --project Anime/MikoApp.Anime.Verification -- --safe-area
+# 演示模式、原图比例、离线零请求、设置持久化和服务器切换隔离
+dotnet run --project Anime/MikoApp.Anime.Verification -- --demo-mode
+# 显式维护命令：从真实只读 API 刷新小规模演示目录和原始图片，不获取视频
+dotnet run --project Anime/MikoApp.Anime.Verification -- --refresh-demo
 # 原生系统播放器诊断；文件内容为媒体 URL 或本地视频路径（建议时长超过 12 秒）
 dotnet run --project Anime/MikoApp.Anime.Verification -- --playback-source <媒体地址文本文件>
 ```
 
-截图、布局框和计算样式写入 `Anime/artifacts/`（Git 忽略）。默认视觉验证用隔离 HTTP fixture 完成登录和收藏状态，不使用或保存真实账户。协议检查包括 APK 签名/TXT 向量、业务密文、明文 envelope、Protobuf、GCM tag 篡改及截断拒绝。
+截图、布局框和计算样式写入 `Anime/artifacts/`（Git 忽略）。默认视觉验证使用内置演示数据完成登录和收藏状态，不使用或保存真实账户；模式切换验证使用隔离 HTTP fixture 模拟在线服务。协议检查包括 APK 签名/TXT 向量、业务密文、明文 envelope、Protobuf、GCM tag 篡改及截断拒绝。
 
 2026-11-09 验证：根目录构建及 Desktop/Simulator/Android/iOS 项目编译通过，应用 Razor 无警告。Android 宿主的旧平台 API 和 Miko 平台项目仍存在原有编译警告；iOS 真机打包/签名及移动端实际播放需要对应设备和 Apple 构建环境。Android/iOS 组件模式各完成 28 个原生截图状态检查。桌面系统解码器已播放内置视频；未使用真实账号验证鉴权播放或远程写操作。
 
@@ -83,7 +93,9 @@ API 的 `vod_pic` 是完整图片地址，不需要业务解密或改写。原 A
 
 本次线上验证：精选 21/21、分类 18/18、搜索 6/6、排行 67/68、周表 5/5、历史 1/1 封面解码成功。新建加载器并禁止图片网络后，109 个不同 URL 全部从磁盘恢复，图片网络请求为 0。排行榜剩余的 `lain.bgm.tv/pic/cover/l/d8/1e/575559_v6ks9.jpg` 在当前网络持续连接超时，使用占位图；此第三方可达性问题仍保留在诊断报告中。截图与日志位于 `Anime/artifacts/image-fix/` 和 `Anime/artifacts/image-fix-verification.log`。
 
-内置预览图片来自仓库参考示例，开屏插画截取自需求提供的开屏画面，仅用于此演示。网络内容与预览数据明确区分。
+内置番剧数据于 2026-11-10 从真实 API 更新，精简为 28 部番剧和 31 张原图（约 1.8 MB，含 JSON），覆盖首页、日漫/剧场版、三个排行分组、七天排期和真实分集结构。原图等比缩小至最长边不超过 720 像素，保留完整画面；封面、排行、历史与横幅按图像固有比例显示。旧截图封面、缩略图及过期目录已移除。开屏插画仍使用原界面素材。完整说明见 [演示资源说明](DEMO_ASSETS.md)。
+
+2026-11-10 演示模式验证：默认离线、设置持久化、自定义 API/发现地址、会话与历史隔离、切换时取消旧请求及在线失败行为均通过；演示页面、登录、收藏和评论的 API/图片网络请求为 0，图片布局宽高比与原图一致。设置与模式验证输出 12 个状态，Android/iOS 组件模式完整回归各 28 个截图状态；另检查两种模式下的移动端、桌面及轮播切换 6 个状态，确认相邻横幅不越界。结果位于 `Anime/artifacts/demo-mode/` 和 `Anime/artifacts/demo-regression*/`。
 
 ### 播放故障排查与我的页面安全区（2026-11-10）
 

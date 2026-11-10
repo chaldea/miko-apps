@@ -9,14 +9,29 @@ public sealed class LanercClient : IDisposable
 {
     private readonly HttpClient _http;
     private readonly SemaphoreSlim _discovery = new(1);
+    private readonly AnimeSettings? _settings;
+    private readonly DemoCatalog _demo = new();
+    private CancellationTokenSource _configuration = new();
+    public bool DemoMode => _settings?.DemoMode ?? false;
+    public string ServerAddress => _settings?.ServerAddress ?? AnimeSettings.DefaultServerAddress;
     public Uri? BaseAddress { get; private set; }
     public string? Token { get; private set; }
     public LanercClient() : this(new HttpClientHandler { AllowAutoRedirect = false, AutomaticDecompression = DecompressionMethods.All }) { }
     public LanercClient(HttpMessageHandler handler) => _http = new(handler) { Timeout = TimeSpan.FromSeconds(20) };
-    public void SignOut() => Token = null;
+    public LanercClient(AnimeSettings settings, HttpMessageHandler? handler = null)
+        : this(handler ?? new HttpClientHandler { AllowAutoRedirect = false, AutomaticDecompression = DecompressionMethods.All }) => _settings = settings;
+    public void SignOut() { Token = null; _demo.SignOut(); }
+    public void ResetConfiguration()
+    {
+        var previous = _configuration; _configuration = new(); previous.Cancel(); previous.Dispose();
+        BaseAddress = null; Token = null; _demo.Reset();
+    }
 
     public async Task DiscoverAsync(CancellationToken cancellationToken = default)
     {
+        if (DemoMode) return;
+        using var scope = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _configuration.Token);
+        cancellationToken = scope.Token;
         await _discovery.WaitAsync(cancellationToken);
         try
         {
@@ -24,6 +39,14 @@ public sealed class LanercClient : IDisposable
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             deadline.CancelAfter(TimeSpan.FromSeconds(55));
             var ct = deadline.Token;
+            if (ServerAddress != AnimeSettings.DefaultServerAddress)
+            {
+                var endpoint = new Uri(ServerAddress);
+                var address = endpoint.AbsolutePath.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
+                    ? (await DiscoveryJsonAsync(ServerAddress, ct)).Text("domain") : ServerAddress;
+                if (await AcceptBaseAsync(address, ct)) return;
+                throw new LanercException("服务器健康检查失败，请检查配置地址。");
+            }
             foreach (var source in new[] { "Ahttp://uminainfo.cc/api.json", "https://anime999x-1366475786.cos.ap-guangzhou.myqcloud.com/apis.json" })
             {
                 try
@@ -73,6 +96,7 @@ public sealed class LanercClient : IDisposable
         var sign = LanercProtocol.Sign(health.AbsolutePath, DateTimeOffset.UtcNow.ToUnixTimeSeconds(), LanercProtocol.Nonce());
         var data = await DiscoveryJsonAsync(health + "?sign=" + sign, ct);
         if (!data.Flag("status")) return false;
+        ct.ThrowIfCancellationRequested();
         BaseAddress = new Uri(uri.GetLeftPart(UriPartial.Authority) + "/");
         return true;
     }
@@ -102,8 +126,13 @@ public sealed class LanercClient : IDisposable
     }
     public async Task<JsonNode> RequestAsync(string path, JsonObject? body = null, bool auth = false, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
+        if (DemoMode) return _demo.Request(path, body);
+        using var scope = CancellationTokenSource.CreateLinkedTokenSource(ct, _configuration.Token);
+        ct = scope.Token;
         using var response = await SendAsync(path, body, auth, false, ct);
         var raw = await response.Content.ReadAsStringAsync(ct);
+        ct.ThrowIfCancellationRequested();
         JsonNode? json;
         try { json = JsonNode.Parse(raw); }
         catch (System.Text.Json.JsonException) { throw new LanercException("服务器返回了无法识别的响应", (int)response.StatusCode, retryAfterMs: RetryAfter(response)); }
@@ -113,8 +142,13 @@ public sealed class LanercClient : IDisposable
     }
     private async Task<string> PlayAsync(string path, JsonObject body, bool auth, CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
+        if (DemoMode) return SampleMedia.Path;
+        using var scope = CancellationTokenSource.CreateLinkedTokenSource(ct, _configuration.Token);
+        ct = scope.Token;
         using var response = await SendAsync(path, body, auth, true, ct);
         var bytes = await response.Content.ReadAsByteArrayAsync(ct);
+        ct.ThrowIfCancellationRequested();
         if (!response.IsSuccessStatusCode)
             throw new LanercException($"播放请求失败（{(int)response.StatusCode}）", (int)response.StatusCode, retryAfterMs: RetryAfter(response));
         if (response.Content.Headers.ContentType?.MediaType?.Contains("json", StringComparison.OrdinalIgnoreCase) == true)
@@ -170,5 +204,5 @@ public sealed class LanercClient : IDisposable
     // Color/position wire types are intentionally caller-supplied: their enums were not recovered.
     public Task<JsonNode> SendBarrageAsync(int id, int episode, int second, string content, JsonNode color, JsonNode position, CancellationToken ct = default) => RequestAsync("/app/chat/sendbarrage", new() { ["video_id"] = id, ["video_url"] = episode, ["second"] = second, ["content"] = content, ["color"] = color.DeepClone(), ["position"] = position.DeepClone() }, true, ct);
     public Task<JsonNode> ReportBarrageAsync(int bid, string title, CancellationToken ct = default) => RequestAsync("/app/report/barrage", new() { ["bid"] = bid, ["vodname"] = title }, true, ct);
-    public void Dispose() { _http.Dispose(); _discovery.Dispose(); }
+    public void Dispose() { _configuration.Cancel(); _configuration.Dispose(); _http.Dispose(); _discovery.Dispose(); }
 }

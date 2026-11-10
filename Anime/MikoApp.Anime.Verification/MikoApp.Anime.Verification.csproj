@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="SkiaSharp" Version="3.119.1" />
     <ProjectReference Include="../MikoApp.Anime/MikoApp.Anime.csproj" />
     <ProjectReference Include="../../miko/src/Miko.Windowing/Miko.Windowing.csproj" />
   </ItemGroup>

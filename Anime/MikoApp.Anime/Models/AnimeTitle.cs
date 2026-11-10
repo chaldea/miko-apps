@@ -21,7 +21,7 @@ public sealed record AnimeTitle(
     public string Remarks { get; init; } = "";
     public string Author { get; init; } = "";
     public string PosterSource => Poster.Contains("://") || Poster.StartsWith("data:") ? Poster : $"res://Assets/{Poster}";
-    public string ThumbnailSource => Preview ? $"res://Assets/thumbnail-{Id}.jpg" : PosterSource;
+    public string ThumbnailSource => PosterSource;
     public string Status => string.IsNullOrEmpty(Remarks) ? $"全 {Episodes} 集" : Remarks;
 }
 

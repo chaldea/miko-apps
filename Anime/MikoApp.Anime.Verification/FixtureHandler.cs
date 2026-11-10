@@ -27,8 +27,8 @@ internal sealed class FixtureHandler : HttpMessageHandler
         {
             if (request.Headers.GetValues("Authorization").Single() != "fixture-token") throw new InvalidOperationException("Token must be raw");
             return Success(new JsonObject { ["like_list"] = new JsonArray(
-                new JsonObject { ["id"] = 101, ["vod_name"] = "攻壳机动队 第二季", ["vod_pic"] = "res://Assets/thumbnail-1.jpg", ["vod_total"] = 26, ["vod_class"] = "科幻 · 战斗" },
-                new JsonObject { ["id"] = 102, ["vod_name"] = "亚人", ["vod_pic"] = "res://Assets/thumbnail-2.jpg", ["vod_total"] = 13, ["vod_class"] = "悬疑 · 战斗" }) });
+                new JsonObject { ["id"] = 101, ["vod_name"] = "攻壳机动队 第二季", ["vod_pic"] = "res://Assets/poster-placeholder.svg", ["vod_total"] = 26, ["vod_class"] = "科幻 · 战斗" },
+                new JsonObject { ["id"] = 102, ["vod_name"] = "亚人", ["vod_pic"] = "res://Assets/poster-placeholder.svg", ["vod_total"] = 13, ["vod_class"] = "悬疑 · 战斗" }) });
         }
         throw new InvalidOperationException($"Unexpected fixture request {path}");
     }

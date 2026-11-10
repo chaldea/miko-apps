@@ -3,7 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDisplayName</key>
-	<string>MikoApp.Anime</string>
+	<string>Anime</string>
+	<key>CFBundleName</key>
+	<string>Anime</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.miko.mikoappanime</string>
 	<key>CFBundleShortVersionString</key>

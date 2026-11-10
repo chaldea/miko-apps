@@ -19,6 +19,7 @@
     </IonCard>
     <IonGrid><IonRow><IonCol Size="6"><IonButton Expand="block" Fill="clear" OnClick="@(() => Show("入站问答", "问答功能暂未开放，敬请期待。"))">入站问答</IonButton></IonCol><IonCol Size="6"><IonButton Expand="block" Fill="clear" OnClick="@(() => Show("主题切换", "当前使用清新浅色主题。"))">主题切换</IonButton></IonCol></IonRow></IonGrid>
     <IonList Class="user-menu">
+        <IonItem Class="open-settings" Href="/settings" Detail="true"><Start><IonIcon Icon="@Ionicons.SettingsOutline" /></Start><ChildContent><IonLabel>系统设置</IonLabel></ChildContent><End><IonNote>@(Store.IsPreview ? "演示模式" : "在线模式")</IonNote></End></IonItem>
         @foreach (var item in Menu) { <IonItem Button="true" Detail="true" OnClick="@(() => Show(item.Title, item.Message))"><Start><IonIcon Icon="@item.Icon" /></Start><ChildContent><IonLabel>@item.Title</IonLabel></ChildContent></IonItem> }
     </IonList>
 </div></IonContent></IonPage>

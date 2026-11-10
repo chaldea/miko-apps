@@ -15,16 +15,17 @@
     </IonHeader>
     <IonContent><div class="page-padding">
         <PageStatus Busy="@Busy" Message="@(Error ?? Store.ConnectionError)" OnRetry="Refresh" />
+        @if (Store.IsPreview) { <div class="demo-notice"><IonNote>演示模式 · 内置番剧数据</IonNote><IonButton Fill="clear" Size="small" Href="/settings">系统设置</IonButton></div> }
         @if (_category == "精选")
         {
             @if (Store.Banners.Count > 0)
             {
-                <IonSlides Class="home-banner" Pagination="true" Autoplay="true" AutoplayDelay="5000" Loop="true">
+                <div class="home-banner-frame"><IonSlides Class="home-banner" Pagination="true" Autoplay="true" AutoplayDelay="5000" Loop="true">
                     @foreach (var banner in Store.Banners)
                     {
                         <IonSlide @key="banner.AnimeId"><IonCard Class="banner-card" Button="true" OnClick="@(() => AnimeNavigation.Open(banner.AnimeId))"><img class="banner-image" src="@banner.ImageSource" /></IonCard></IonSlide>
                     }
-                </IonSlides>
+                </IonSlides></div>
             }
             <IonGrid Class="quick-links"><IonRow>
                 <IonCol Size="6"><IonButton Expand="block" Fill="clear" Href="/trending"><Start><IonIcon Icon="@Ionicons.BarChartOutline" /></Start><ChildContent>热度排行榜</ChildContent></IonButton></IonCol>
@@ -68,7 +69,7 @@
         var next = more ? _page + 1 : 1;
         var rows = await Store.FilterAsync(category, next, _genre, _year, _sort == "按评分", Lifetime.Token);
         var merged = (more ? _results.Concat(rows) : rows).DistinctBy(t => t.Id).ToArray();
-        _more = rows.Count > 0 && (!more || merged.Length > _results.Count) && !Store.IsPreview;
+        _more = rows.Count > 0 && (!more || merged.Length > _results.Count);
         _results = merged; _page = next;
     });
 }

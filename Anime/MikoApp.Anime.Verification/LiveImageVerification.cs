@@ -14,7 +14,7 @@ internal static class LiveImageVerification
     {
         var output = Path.GetFullPath("Anime/artifacts/image-fix");
         var cache = Path.Combine(output, "cache-" + Guid.NewGuid().ToString("N"));
-        Environment.SetEnvironmentVariable("ANIME_OFFLINE", null);
+        Environment.SetEnvironmentVariable("ANIME_OFFLINE", "0");
         Environment.SetEnvironmentVariable("ANIME_DATA_DIR", Path.Combine(output, "state"));
         Environment.SetEnvironmentVariable("ANIME_IMAGE_CACHE_DIR", cache);
         var sources = new HashSet<string>();

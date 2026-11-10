@@ -31,7 +31,7 @@
                     var index = i;
                     <IonButton Class="episode-button" Size="small" Fill="@(i == _episode ? "outline" : "clear")" Disabled="@Busy" OnClick="@(() => ChooseEpisode(index))">@CurrentLine!.Episodes[i].Title</IonButton>
                 }</div>
-                @if (detail.Title.Preview) { <IonNote>内置预览 · 播放器使用本地演示短片</IonNote> }
+                @if (detail.Title.Preview) { <IonNote>演示模式 · 所有分集均播放本地测试短片</IonNote> }
                 @if (!detail.Title.Preview && !Store.Profile.SignedIn) { <IonButton Fill="clear" Size="small" Href="/login">登录账号，继续追番</IonButton> }
                 <IonCard Class="support-card" Button="true" OnClick="@(() => NavigationManager?.NavigateTo("/vip"))"><IonCardContent>解锁免广告特权　　前往福利中心 ›</IonCardContent></IonCard>
                 <h2 class="section-title">精彩推荐</h2><PosterGrid Titles="@Store.Titles.Where(t => t.Id != Id && t.Preview == detail.Title.Preview).Take(6).ToArray()" />
@@ -161,7 +161,6 @@
     private Task MoreComments() => Run(() => LoadComments(true));
     private async Task LoadComments(bool more)
     {
-        if (_detail?.Title.Preview == true) { _comments = []; _commentTotal = 0; return; }
         var page = more ? _commentPage + 1 : 1;
         var data = await Api.CommentsAsync(Id, page, Lifetime.Token);
         var rows = data["vod_comment"].Items("comment").ToArray();
@@ -171,7 +170,6 @@
     private Task SendComment() => Run(async () =>
     {
         Store.RequireLogin();
-        if (_detail?.Title.Preview == true) throw new LanercException("预览内容不支持发布评论。");
         if (string.IsNullOrWhiteSpace(_comment) || _comment.Trim().Length > 300) throw new LanercException("请输入1至300字的评论。");
         await Api.SendCommentAsync(Id, _comment.Trim(), ct: Lifetime.Token); _comment = ""; await LoadComments(false);
     });

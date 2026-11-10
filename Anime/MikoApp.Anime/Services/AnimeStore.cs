@@ -5,15 +5,15 @@ using Miko.Common;
 
 namespace MikoApp.Anime.Services;
 
-/// <summary>Remote catalog/session, explicit bundled preview, durable local watch/search history.</summary>
+/// <summary>Selected catalog/session with separate demo and server-local watch/search history.</summary>
 public sealed class AnimeStore
 {
     private readonly LanercClient _api;
     private readonly Dictionary<int, AnimeTitle> _titles = [];
     private readonly HashSet<int> _favorites = [];
     private readonly List<WatchRecord> _history = [];
-    private readonly string _statePath;
-    public bool IsPreview { get; private set; } = true;
+    private string _statePath = "";
+    public bool IsPreview => _api.DemoMode;
     public bool Initialized { get; private set; }
     public string? ConnectionError { get; private set; }
     public string? StorageError { get; private set; }
@@ -35,27 +35,41 @@ public sealed class AnimeStore
     public AnimeStore(LanercClient api)
     {
         _api = api;
-        var dir = Environment.GetEnvironmentVariable("ANIME_DATA_DIR") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MikoAnime");
-        _statePath = Path.Combine(dir, "library.json");
-        LoadPreview(); LoadLocal();
+        ResetCatalog();
+    }
+    public void ApplySettings(bool demoMode, string? server, AnimeSettings settings)
+    {
+        var normalized = AnimeSettings.ValidateServer(server);
+        var changed = settings.DemoMode != demoMode || settings.ServerAddress != normalized;
+        settings.Save(demoMode, normalized);
+        if (!changed) return;
+        _api.ResetConfiguration();
+        ResetCatalog(); Changed?.Invoke();
+    }
+    private void ResetCatalog()
+    {
+        _titles.Clear(); _favorites.Clear(); _history.Clear(); SearchHistory.Clear();
+        Categories = []; Hot = []; Banners = []; Notice = null; GuestEnabled = false;
+        Initialized = false; ConnectionError = StorageError = null;
+        Profile = new("游客", "", "res://Assets/avatar.jpg", false); Qq = ""; Group = "普通用户"; Coins = 0;
+        var scope = IsPreview ? "demo" : Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(_api.ServerAddress)))[..16];
+        _statePath = Path.Combine(AnimeSettings.DataDirectory, "library-" + scope + ".json");
+        if (IsPreview)
+        {
+            Cache(DemoCatalog.Titles.Select(t => ParseCurrentTitle(t)));
+            ApplyHome(new DemoCatalog().Request("/app/home", null));
+        }
+        LoadLocal();
     }
     public Task InitializeAsync(CancellationToken ct = default) => Initialized ? Task.CompletedTask : RefreshAsync(ct);
     public async Task RefreshAsync(CancellationToken ct = default)
     {
         ConnectionError = null;
-        if (Environment.GetEnvironmentVariable("ANIME_OFFLINE") == "1")
-        { Initialized = true; ConnectionError = "离线预览 · 展示内置示例内容"; return; }
         try
         {
             var home = await _api.HomeAsync(ct);
-            var categories = home.Items("vod_list").Select(s => new AnimeCategory(s.Int("sort_id"), s.Text("sort_name"),
-                Split(s.Text("type_class")), Split(s.Text("type_year")), s.Items("vods").Select(v => ParseTitle(v, s.Text("sort_name"))).ToArray())).ToArray();
-            var hot = home.Items("hot_list").Select(v => ParseTitle(v)).ToArray();
-            var banners = home.Items("banner").Select(v => new FeaturedAnime(v.Int("vod_id"), v.Text("image"))).ToArray();
-            foreach (var key in _titles.Where(p => p.Value.Preview && !_history.Any(h => h.AnimeId == p.Key)).Select(p => p.Key).ToArray()) _titles.Remove(key);
-            Categories = categories; Hot = hot; Banners = banners;
-            Cache(categories.SelectMany(c => c.Titles).Concat(hot));
-            IsPreview = false; Initialized = true; Changed?.Invoke();
+            ApplyHome(home);
+            Initialized = true; Changed?.Invoke();
             try
             {
                 var config = await _api.ConfigAsync(ct);
@@ -64,10 +78,19 @@ public sealed class AnimeStore
             }
             catch (Exception ex) when (ex is not OperationCanceledException) { ConnectionError = "配置加载失败：" + Error(ex); }
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-        catch (Exception ex) { ConnectionError = Error(ex) + (IsPreview ? " 当前展示内置预览。" : " 已保留上次加载的内容。"); Initialized = true; }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex) { ConnectionError = Error(ex); Initialized = true; }
         Changed?.Invoke();
     }
+    private void ApplyHome(JsonNode home)
+    {
+        Categories = home.Items("vod_list").Select(s => new AnimeCategory(s.Int("sort_id"), s.Text("sort_name"),
+            Split(s.Text("type_class")), Split(s.Text("type_year")), s.Items("vods").Select(v => ParseCurrentTitle(v, s.Text("sort_name"))).ToArray())).ToArray();
+        Hot = home.Items("hot_list").Select(v => ParseCurrentTitle(v)).ToArray();
+        Banners = home.Items("banner").Select(v => new FeaturedAnime(v.Int("vod_id"), v.Text("image"))).ToArray();
+        Cache(Categories.SelectMany(c => c.Titles).Concat(Hot));
+    }
+    private AnimeTitle ParseCurrentTitle(JsonNode value, string kind = "日漫") => ParseTitle(value, kind) with { Preview = IsPreview };
     private static string[] Split(string value) => ["全部", .. value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
     public AnimeTitle? Find(int id) => _titles.GetValueOrDefault(id);
     public void Cache(IEnumerable<AnimeTitle> items) { foreach (var item in items.Where(t => t.Id > 0)) _titles[item.Id] = item; }
@@ -78,13 +101,8 @@ public sealed class AnimeStore
 
     public async Task<IReadOnlyList<AnimeTitle>> FilterAsync(AnimeCategory category, int page, string genre, string year, bool rating, CancellationToken ct)
     {
-        if (IsPreview)
-        {
-            var rows = category.Titles.Where(t => (genre == "全部" || t.Genre.Contains(genre)) && (year == "全部" || t.Year.ToString() == year));
-            return page > 1 ? [] : (rating ? rows.OrderByDescending(t => t.Rating) : rows.OrderByDescending(t => t.Year)).ToArray();
-        }
         var data = await _api.FilterAsync(category.Id, page, genre == "全部" ? "" : genre, year == "全部" ? "" : year, rating, ct);
-        var result = data.Items("filter_vods").Select(v => ParseTitle(v, category.Name)).ToArray();
+        var result = data.Items("filter_vods").Select(v => ParseCurrentTitle(v, category.Name)).ToArray();
         Cache(result); return result;
     }
     public async Task<IReadOnlyList<AnimeTitle>> SearchAsync(string keyword, CancellationToken ct)
@@ -93,31 +111,27 @@ public sealed class AnimeStore
         SearchHistory.Remove(keyword); SearchHistory.Insert(0, keyword);
         if (SearchHistory.Count > 40) SearchHistory.RemoveRange(40, SearchHistory.Count - 40);
         SaveLocal();
-        if (IsPreview) return Titles.Where(t => t.Title.Contains(keyword, StringComparison.OrdinalIgnoreCase)).ToArray();
         var data = await _api.SearchAsync(keyword, ct);
-        var result = data.Items("search_vods").Select(v => ParseTitle(v)).ToArray();
+        var result = data.Items("search_vods").Select(v => ParseCurrentTitle(v)).ToArray();
         Cache(result); return result;
     }
     public void ClearSearch() { SearchHistory.Clear(); SaveLocal(); }
     public async Task<IReadOnlyList<RankGroup>> RankAsync(CancellationToken ct)
     {
-        if (IsPreview) return new[] { 4, 1, 10 }.Select(s => new RankGroup($"{s}月新番", Titles.Where(t => t.Season == s).OrderByDescending(t => t.Rating).ToArray())).ToArray();
         var data = await _api.RankAsync(ct);
-        var groups = data.Items("rank_list").Select(g => new RankGroup(g.Text("name"), g.Items("vods").Select(v => ParseTitle(v)).ToArray())).ToArray();
+        var groups = data.Items("rank_list").Select(g => new RankGroup(g.Text("name"), g.Items("vods").Select(v => ParseCurrentTitle(v)).ToArray())).ToArray();
         Cache(groups.SelectMany(g => g.Titles)); return groups;
     }
     public async Task<IReadOnlyList<IReadOnlyList<AnimeTitle>>> WeekAsync(CancellationToken ct)
     {
-        if (IsPreview) return Enumerable.Range(1, 7).Select(d => (IReadOnlyList<AnimeTitle>)Titles.Where(t => t.Weekday == d).ToArray()).ToArray();
         var data = await _api.WeekAsync(ct);
-        var days = new[] { "mon", "tue", "wed", "thu", "fri", "sat", "sun" }.Select(day => (IReadOnlyList<AnimeTitle>)data["week_list"].Items(day).Select(v => ParseTitle(v)).ToArray()).ToArray();
+        var days = new[] { "mon", "tue", "wed", "thu", "fri", "sat", "sun" }.Select(day => (IReadOnlyList<AnimeTitle>)data["week_list"].Items(day).Select(v => ParseCurrentTitle(v)).ToArray()).ToArray();
         Cache(days.SelectMany(d => d)); return days;
     }
     public async Task<AnimeDetail> DetailAsync(int id, CancellationToken ct)
     {
-        if (Find(id) is { Preview: true } preview) return new(preview, [new("preview", "本地播放器演示", Enumerable.Range(1, preview.Episodes).Select(e => new Episode($"第{e:00}集", "", true)).ToArray())]);
         var data = await _api.DetailAsync(id, ct);
-        var title = ParseTitle(data["video_play_info"] ?? throw new FormatException("详情缺少视频信息"));
+        var title = ParseCurrentTitle(data["video_play_info"] ?? throw new FormatException("详情缺少视频信息"));
         Cache([title]);
         return new(title, data.Items("video_play_list").Select(line => new PlayLine(line.Text("player"), line.Text("name"), line.Items("video").Select(e => new Episode(e.Text("title"), e.Text("resource_id"), e.Flag("can_play_without_login"))).ToArray())).ToArray());
     }
@@ -142,13 +156,12 @@ public sealed class AnimeStore
     public async Task LoadFavoritesAsync(CancellationToken ct)
     {
         RequireLogin(); var data = await _api.LikesAsync(ct);
-        var titles = data.Items("like_list").Select(v => ParseTitle(v)).ToArray();
+        var titles = data.Items("like_list").Select(v => ParseCurrentTitle(v)).ToArray();
         Cache(titles); _favorites.Clear(); foreach (var title in titles) _favorites.Add(title.Id);
     }
     public async Task ToggleFavoriteAsync(int id, CancellationToken ct)
     {
         RequireLogin();
-        if (Find(id)?.Preview == true) throw new LanercException("预览内容暂不支持云端收藏。");
         await LoadFavoritesAsync(ct);
         var next = new HashSet<int>(_favorites); if (!next.Remove(id)) next.Add(id);
         await _api.SetLikesAsync(next, ct);
@@ -181,25 +194,21 @@ public sealed class AnimeStore
         LanercException => ex.Message,
         _ => "数据加载失败，请重试。"
     };
-    private void LoadPreview()
-    {
-        using var stream = typeof(App).Assembly.GetManifestResourceStream("MikoApp.Anime.Assets.catalog.json")!;
-        var seed = JsonNode.Parse(stream)!;
-        Cache(seed.Items("titles").Select(t => new AnimeTitle(t.Int("id"), t.Text("title"), t.Text("kind"), t.Text("genre"), t.Int("year"), t.Int("season"), t.Int("weekday"), t.Int("episodes"), t.Number("rating"), t.Text("description"), t.Text("poster"), t.Text("updateTime")) { Preview = true }));
-        Categories = new[] { "日漫", "剧场版" }.Select((kind, i) => new AnimeCategory(i, kind, ["全部", "热血", "穿越", "奇幻", "战斗", "搞笑", "日常"], ["全部", "2026", "2025", "2024", "2023", "2022"], Titles.Where(t => t.Kind == kind).ToArray())).ToArray();
-        Hot = Titles.Take(3).ToArray(); Banners = [new(1, "res://Assets/banner.jpg")];
-    }
     private void LoadLocal()
     {
         try
         {
-            if (!File.Exists(_statePath)) return;
-            var state = JsonNode.Parse(File.ReadAllText(_statePath));
+            var source = _statePath;
+            if (!File.Exists(source) && !IsPreview && _api.ServerAddress == AnimeSettings.DefaultServerAddress)
+                source = Path.Combine(AnimeSettings.DataDirectory, "library.json");
+            if (!File.Exists(source)) return;
+            var state = JsonNode.Parse(File.ReadAllText(source));
             foreach (var s in state.Items("searches")) SearchHistory.Add(s.ToString());
             foreach (var h in state.Items("history"))
             {
-                var title = ParseTitle(h["title"]!);
-                if (h.Flag("preview")) title = title with { Preview = true };
+                if (h.Flag("preview") != IsPreview) continue;
+                var title = ParseCurrentTitle(h["title"]!);
+                if (IsPreview && !_titles.ContainsKey(title.Id)) continue;
                 // Keep the richer bundled data for preview IDs.
                 if (!title.Preview || !_titles.ContainsKey(title.Id)) Cache([title]);
                 if (DateTimeOffset.TryParse(h.Text("watched_at"), out var time)) _history.Add(new(title.Id, h.Int("episode", 1), time));

@@ -5,6 +5,8 @@ using Microsoft.Extensions.DependencyInjection;
 using MikoApp.Anime.Services;
 using MikoApp.Anime.Verification;
 
+if (args.Contains("--refresh-demo")) { await DemoSnapshotCapture.RunAsync(); return; }
+if (args.Contains("--demo-mode")) { DemoModeVerification.Run(); return; }
 if (args.Contains("--safe-area")) { SafeAreaVerification.Run(); return; }
 if (Array.IndexOf(args, "--playback-source") is var playbackIndex && playbackIndex >= 0)
 {
@@ -21,6 +23,7 @@ if (args.Contains("--live-images"))
 
 if (args.Contains("--live-ui"))
 {
+    Environment.SetEnvironmentVariable("ANIME_OFFLINE", "0");
     using var app = new AppHarness("Anime/artifacts/live-ui");
     app.Navigate("/home");
     for (var attempt = 0; attempt < 60 && !app.Service<AnimeStore>().Initialized; attempt++) app.Pump(100);
@@ -94,19 +97,20 @@ Console.WriteLine("Protocol verification passed (signature, TXT, ECB, plaintext,
 var output = Path.GetFullPath(args.FirstOrDefault(a => !a.StartsWith("--")) ?? "Anime/artifacts/verification");
 Environment.SetEnvironmentVariable("ANIME_OFFLINE", "1");
 Environment.SetEnvironmentVariable("ANIME_DATA_DIR", Path.Combine(output, "state"));
-using var harness = new AppHarness(output, ios: args.Contains("--ios"), configure: builder => builder.Services.AddSingleton(new LanercClient(new FixtureHandler())));
+using var harness = new AppHarness(output, ios: args.Contains("--ios"));
 harness.Capture("01-splash");
 harness.Navigate("/home"); harness.Capture("02-home");
 harness.ClickText("ion-segment-button", "日漫"); harness.Capture("03-category");
 harness.ClickText("ion-segment-button", "剧场版"); harness.Capture("04-movies");
 harness.Navigate("/search"); harness.Capture("05-search-history");
-harness.Enter("search-query", "攻壳"); harness.ClickClass("submit-search"); harness.Capture("06-search-results");
-Require(harness.Text.Contains("攻壳"), "Search results");
+var demoTitle = harness.Service<AnimeStore>().Hot.First();
+harness.Enter("search-query", demoTitle.Title); harness.ClickClass("submit-search"); harness.Capture("06-search-results");
+Require(harness.Text.Contains(demoTitle.Title), "Search results");
 harness.Navigate("/trending"); harness.Capture("07-ranking");
 harness.Navigate("/timetable"); harness.Capture("08-timetable");
 harness.Navigate("/vip"); harness.Capture("09-welfare");
 harness.Navigate("/user"); harness.Capture("10-guest-profile");
-harness.Service<AnimeNavigator>().Open(1); harness.Pump(70); harness.Capture("11-detail");
+harness.Service<AnimeNavigator>().Open(demoTitle.Id); harness.Pump(70); harness.Capture("11-detail");
 harness.ClickClass("open-episodes"); harness.Capture("12-episodes"); harness.ClickClass("close-detail-panel");
 harness.ClickClass("open-synopsis"); harness.Capture("13-synopsis"); harness.ClickClass("close-detail-panel");
 harness.ClickText("ion-segment-button", "评论"); harness.Capture("14-comments");

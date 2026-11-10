@@ -7,6 +7,9 @@
     <Nullable>enable</Nullable>
     <StartupObject>MikoApp.Anime.Simulator.Program</StartupObject>
     <StartupType>Simulator</StartupType>
+    <ApplicationIcon>../Branding/appicon.ico</ApplicationIcon>
+    <Title>Anime</Title>
+    <Product>Anime</Product>
   </PropertyGroup>
   <Import Project="../../Startup.props" />
 
