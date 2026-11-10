@@ -1,0 +1,187 @@
+@namespace MikoApp.Anime.Components
+@inherits AsyncPage
+@using Miko.Components.Player
+@using Miko.Components.Player.Danmaku
+@inject LanercClient Api
+@inject Miko.Core.MikoEngine Engine
+@inject MikoPlayerOptions PlayerOptions
+@inject IServiceProvider Services
+<IonPage>
+    <PageHeader Title="@(_detail?.Title.Title ?? "番剧详情")" />
+    @if (_player is not null) { <PlaybackSurface Player="@_player" /> }
+    <div class="detail-tabs">
+        <IonSegment Class="detail-segment" Value="@_tab" ValueChanged="ChangeTab">
+            <IonSegmentButton Value="intro"><IonLabel>简介</IonLabel></IonSegmentButton>
+            <IonSegmentButton Value="comments"><IonLabel>评论 @_commentTotal</IonLabel></IonSegmentButton>
+        </IonSegment>
+        <IonButton Class="open-danmaku" Fill="clear" Size="small" Disabled="@(_player is null)" OnClick="@(() => _composerOpen = true)">发弹幕</IonButton>
+    </div>
+    <IonContent><div class="page-padding">
+        <PageStatus Busy="@Busy" Message="@Error" OnRetry="Retry" />
+        @if (_detail is { } detail)
+        {
+            @if (_tab == "intro")
+            {
+                <div class="section-heading"><div class="row-title">@detail.Title.Title</div><IonButton Class="open-synopsis" Fill="clear" Size="small" OnClick="@(() => _panel = "synopsis")">简介 ›</IonButton></div>
+                <IonNote>@detail.Title.Year · @detail.Title.Genre · @detail.Title.Status</IonNote>
+                <p class="synopsis synopsis-preview">@detail.Title.Description</p>
+                <div class="section-heading"><h2 class="section-title">选集</h2><IonButton Class="open-episodes" Fill="clear" Size="small" OnClick="@(() => _panel = "episodes")">@(CurrentEpisode?.Title ?? "暂无分集") · 全部 ›</IonButton></div>
+                <div class="episode-list">@for (var i = 0; i < (CurrentLine?.Episodes.Count ?? 0); i++)
+                {
+                    var index = i;
+                    <IonButton Class="episode-button" Size="small" Fill="@(i == _episode ? "outline" : "clear")" Disabled="@Busy" OnClick="@(() => ChooseEpisode(index))">@CurrentLine!.Episodes[i].Title</IonButton>
+                }</div>
+                @if (detail.Title.Preview) { <IonNote>内置预览 · 播放器使用本地演示短片</IonNote> }
+                @if (!detail.Title.Preview && !Store.Profile.SignedIn) { <IonButton Fill="clear" Size="small" Href="/login">登录账号，继续追番</IonButton> }
+                <IonCard Class="support-card" Button="true" OnClick="@(() => NavigationManager?.NavigateTo("/vip"))"><IonCardContent>解锁免广告特权　　前往福利中心 ›</IonCardContent></IonCard>
+                <h2 class="section-title">精彩推荐</h2><PosterGrid Titles="@Store.Titles.Where(t => t.Id != Id && t.Preview == detail.Title.Preview).Take(6).ToArray()" />
+            }
+            else
+            {
+                @foreach (var comment in _comments)
+                {
+                    <div @key="@(comment.Int("cid"))" class="comment-row"><IonAvatar Class="comment-avatar"><img src="@comment.Text("avatar", "res://Assets/avatar.jpg")" placeholder="res://Assets/avatar.jpg" /></IonAvatar>
+                        <div class="comment-copy"><div class="comment-author">@comment.Text("nick_name")</div><IonNote>@comment.Text("created_at")</IonNote><p class="comment-text">@comment.Text("content")</p></div>
+                    </div>
+                }
+                @if (!Busy && _comments.Count == 0) { <div class="empty-state">还没有评论，来说说你的想法吧</div> }
+                @if (_comments.Count < _commentTotal) { <IonButton Fill="clear" Expand="block" Disabled="@Busy" OnClick="MoreComments">加载更多评论</IonButton> }
+            }
+        }
+    </div></IonContent>
+    <IonFooter><IonToolbar>
+        @if (_tab == "comments")
+        { <div class="comment-form"><IonInput Class="comment-input" Placeholder="发表评论（最多300字）" Maxlength="300" @bind-Value="_comment" /><IonButton Class="send-comment" Size="small" Disabled="@Busy" OnClick="SendComment">发送</IonButton></div> }
+        else
+        {
+            <div class="detail-actions">
+                <IonButton Class="favorite-toggle" Fill="clear" Disabled="@Busy" OnClick="Favorite"><Start><IonIcon Icon="@(Store.IsFavorite(Id) ? Ionicons.Heart : Ionicons.HeartOutline)" /></Start><ChildContent>@(Store.IsFavorite(Id) ? "已收藏" : "收藏")</ChildContent></IonButton>
+                <IonButton Fill="clear" Href="/downloads">缓存</IonButton>
+                <IonButton Class="enter-fullscreen" Fill="clear" Disabled="@(_player is null)" OnClick="ToggleFullscreen">全屏</IonButton>
+            </div>
+        }
+    </IonToolbar></IonFooter>
+    @if (_player?.IsFullscreen == true)
+    { <IonPortal Id="player-actions"><div class="floating-player-actions"><IonButton Class="fullscreen-danmaku" Size="small" OnClick="@(() => _composerOpen = true)">发弹幕</IonButton><IonButton Class="exit-fullscreen" Size="small" OnClick="ToggleFullscreen">退出全屏</IonButton></div></IonPortal> }
+    <IonModal Class="detail-modal" IsOpen="@(_panel is not null)" IsOpenChanged="@((bool open) => { if (!open) _panel = null; })">
+        <IonPage><IonHeader><IonToolbar><ChildContent><IonTitle>@(_panel == "episodes" ? "选集" : "番剧简介")</IonTitle></ChildContent><End><IonButtons><IonButton Class="close-detail-panel" OnClick="@(() => _panel = null)">关闭</IonButton></IonButtons></End></IonToolbar></IonHeader>
+            <IonContent><div class="page-padding">
+                @if (_panel == "episodes" && _detail is not null)
+                {
+                    <IonSegment Scrollable="true" Value="@_line.ToString()" ValueChanged="ChooseLine" Disabled="@Busy">@for (var i = 0; i < _detail.Lines.Count; i++) { <IonSegmentButton Value="@i.ToString()"><IonLabel>@_detail.Lines[i].Name</IonLabel></IonSegmentButton> }</IonSegment>
+                    <div class="episode-grid">@for (var i = 0; i < (CurrentLine?.Episodes.Count ?? 0); i++) { var index = i; <IonButton Class="episode-option" Fill="@(i == _episode ? "outline" : "clear")" Size="small" Disabled="@Busy" OnClick="@(() => ChooseEpisode(index))">@CurrentLine!.Episodes[i].Title</IonButton> }</div>
+                    @if (CurrentLine?.Episodes.Count is null or 0) { <div class="empty-state">该线路暂无分集</div> }
+                }
+                else if (_detail is not null)
+                {
+                    <h2 class="section-title">@_detail.Title.Title</h2>
+                    <p class="synopsis">评分：@_detail.Title.Rating.ToString("0.0")<br />年份：@_detail.Title.Year<br />作者：@_detail.Title.Author<br />状态：@_detail.Title.Status<br />类型：@_detail.Title.Genre</p>
+                    <h2 class="section-title">简介</h2><p class="synopsis">@_detail.Title.Description</p>
+                }
+            </div></IonContent>
+        </IonPage>
+    </IonModal>
+    <IonModal Class="captcha-modal" @bind-IsOpen="_captchaOpen">
+        <IonPage><IonHeader><IonToolbar><ChildContent><IonTitle>游客验证</IonTitle></ChildContent><End><IonButtons><IonButton OnClick="@(() => _captchaOpen = false)">关闭</IonButton></IonButtons></End></IonToolbar></IonHeader>
+            <IonContent><div class="page-padding"><IonNote>请根据图片提示选择正确答案</IonNote><img class="captcha-image" src="@_captchaImage" />
+                <div class="episode-grid">@for (var i = 1; i <= _optionCount; i++) { var choice = i; <IonButton Disabled="@Busy" OnClick="@(() => AnswerCaptcha(choice))">@i</IonButton> }</div>
+                <PageStatus Busy="@Busy" Message="@Error" /><IonButton Fill="clear" Disabled="@Busy" OnClick="NewCaptcha">换一张</IonButton>
+            </div></IonContent>
+        </IonPage>
+    </IonModal>
+    <DanmakuComposer @bind-IsOpen="_composerOpen" Position="@Position" OnSent="AddLocalDanmaku" />
+</IonPage>
+@code {
+    [Parameter] public int Id { get; set; }
+    private AnimeDetail? _detail;
+    private MikoPlayer? _player;
+    private int _line, _episode, _commentPage = 1, _commentTotal, _optionCount;
+    private string _tab = "intro";
+    private string? _panel, _comment, _captchaImage, _challenge, _credential;
+    private DateTimeOffset _captchaExpires, _credentialExpires;
+    private bool _composerOpen, _captchaOpen, _recorded;
+    private List<JsonNode> _comments = [];
+    private PlayLine? CurrentLine => _detail?.Lines.ElementAtOrDefault(_line);
+    private Episode? CurrentEpisode => CurrentLine?.Episodes.ElementAtOrDefault(_episode);
+    protected override Task OnInitializedAsync() => Run(Load);
+    private async Task Load()
+    {
+        _detail = await Store.DetailAsync(Id, Lifetime.Token);
+        _episode = Math.Clamp((Store.History.FirstOrDefault(h => h.AnimeId == Id)?.Episode ?? 1) - 1, 0, Math.Max(0, (CurrentLine?.Episodes.Count ?? 1) - 1));
+        _player = new MikoPlayer { Engine = Engine, Options = PlayerOptions,
+            PlatformService = Services.GetService(typeof(Miko.Platform.IPlatformService)) as Miko.Platform.IPlatformService,
+            AutoPlay = true, DanmakuSettings = new DanmakuSettings { FontSize = 18 }, Style = new Style { Height = Length.Px(220), FlexShrink = 0 } };
+        _player.FullscreenChanged += StateHasChanged; _player.Controller.Changed += PlaybackChanged;
+        StateHasChanged(); await Resolve();
+    }
+    private Task Retry() => Run(_detail is null ? Load : Resolve);
+    private Task ChooseEpisode(int index) => Run(async () => { _episode = index; _panel = null; await Resolve(); });
+    private Task ChooseLine(string value) => Run(async () => { _line = int.Parse(value); _episode = 0; await Resolve(); });
+    private async Task Resolve()
+    {
+        if (_player is null || _detail is null) return;
+        _recorded = true; _player.Pause(); _player.Source = default; _player.Danmaku = []; StateHasChanged();
+        if (CurrentEpisode is not { } episode) { Error = "当前没有可播放的分集。"; return; }
+        if (_detail.Title.Preview) { SetSource(SampleMedia.Path); return; }
+        if (!Store.Profile.SignedIn && episode.GuestAllowed && Store.GuestEnabled)
+        {
+            if (_credential is null || DateTimeOffset.UtcNow >= _credentialExpires) { await FetchCaptcha(); return; }
+            SetSource(await Api.ResolveGuestAsync(episode.ResourceId, _credential, Lifetime.Token));
+        }
+        else SetSource(await Api.ResolveAsync(episode.ResourceId, Lifetime.Token));
+        try { _player.Danmaku = await Store.DanmakuAsync(Id, _episode + 1, Lifetime.Token); }
+        catch (Exception ex) when (ex is not OperationCanceledException) { Error = "弹幕加载失败，视频可继续播放。"; }
+    }
+    private void SetSource(string source)
+    { if (_player is not null) { _player.Source = source; _player.AutoPlay = true; _player.Seek(TimeSpan.Zero); _player.Play(); _recorded = false; StateHasChanged(); } }
+    private void PlaybackChanged()
+    {
+        if (!_recorded && _player?.Controller.State == Miko.Platform.Video.VideoSessionState.Playing)
+        { _recorded = true; Store.RecordWatch(Id, _episode + 1); }
+    }
+    private Task NewCaptcha() => Run(FetchCaptcha);
+    private async Task FetchCaptcha()
+    {
+        var data = await Api.CaptchaAsync(Lifetime.Token);
+        _challenge = data.Text("challenge_id"); _captchaImage = data.Text("image"); _optionCount = data.Int("option_count");
+        if (_optionCount is < 2 or > 6 || data.Int("expires_in") <= 0 || string.IsNullOrEmpty(_challenge) || !_captchaImage.StartsWith("data:image/png;base64,")) throw new LanercException("验证码数据无效，请重试。");
+        var bytes = Convert.FromBase64String(_captchaImage[22..]);
+        if (bytes.Length < 8 || !bytes.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 })) throw new LanercException("验证码图片无效。");
+        _captchaExpires = DateTimeOffset.UtcNow.AddSeconds(data.Int("expires_in")); _captchaOpen = true;
+    }
+    private Task AnswerCaptcha(int choice) => Run(async () =>
+    {
+        if (DateTimeOffset.UtcNow >= _captchaExpires) { await FetchCaptcha(); throw new LanercException("验证码已过期，请重新选择。"); }
+        var data = await Api.GuestCredentialAsync(_challenge!, choice, Lifetime.Token);
+        _credential = data.Text("guest_credential");
+        if (string.IsNullOrEmpty(_credential) || data.Int("expires_in") <= 0 || data.Number("expires_at") <= 0) throw new LanercException("游客凭证无效，请重试。");
+        _credentialExpires = DateTimeOffset.UtcNow.AddSeconds(data.Int("expires_in")); _captchaOpen = false; await Resolve();
+    });
+    private Task ChangeTab(string value) { _tab = value; return value == "comments" ? Run(() => LoadComments(false)) : Task.CompletedTask; }
+    private Task MoreComments() => Run(() => LoadComments(true));
+    private async Task LoadComments(bool more)
+    {
+        if (_detail?.Title.Preview == true) { _comments = []; _commentTotal = 0; return; }
+        var page = more ? _commentPage + 1 : 1;
+        var data = await Api.CommentsAsync(Id, page, Lifetime.Token);
+        var rows = data["vod_comment"].Items("comment").ToArray();
+        _comments = (more ? _comments.Concat(rows) : rows).DistinctBy(c => c.Int("cid")).ToList();
+        _commentTotal = rows.Length == 0 ? _comments.Count : data["vod_comment"].Int("total", _comments.Count); _commentPage = page;
+    }
+    private Task SendComment() => Run(async () =>
+    {
+        Store.RequireLogin();
+        if (_detail?.Title.Preview == true) throw new LanercException("预览内容不支持发布评论。");
+        if (string.IsNullOrWhiteSpace(_comment) || _comment.Trim().Length > 300) throw new LanercException("请输入1至300字的评论。");
+        await Api.SendCommentAsync(Id, _comment.Trim(), ct: Lifetime.Token); _comment = ""; await LoadComments(false);
+    });
+    private Task Favorite() => Run(() => Store.ToggleFavoriteAsync(Id, Lifetime.Token));
+    private void ToggleFullscreen() => _player?.ToggleFullscreen();
+    private TimeSpan Position() => _player?.Controller.Position ?? TimeSpan.Zero;
+    private void AddLocalDanmaku(DanmakuItem item) { if (_player is not null) _player.Danmaku = [.. _player.Danmaku, item]; }
+    protected override void OnDispose()
+    {
+        base.OnDispose(); if (_player is null) return;
+        _player.FullscreenChanged -= StateHasChanged; _player.Controller.Changed -= PlaybackChanged; _player.Dispose();
+    }
+}

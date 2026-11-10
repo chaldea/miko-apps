@@ -1,0 +1,13 @@
+@namespace MikoApp.Anime.Components
+@if (Busy) { <div class="loading-state"><IonSpinner Name="crescent" /><IonNote>正在加载…</IonNote></div> }
+@if (!string.IsNullOrWhiteSpace(Message))
+{
+    <div class="status-row"><IonNote>@Message</IonNote>
+        @if (OnRetry.HasDelegate) { <IonButton Size="small" Fill="clear" Disabled="@Busy" OnClick="@OnRetry">重试</IonButton> }
+    </div>
+}
+@code {
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public string? Message { get; set; }
+    [Parameter] public EventCallback OnRetry { get; set; }
+}

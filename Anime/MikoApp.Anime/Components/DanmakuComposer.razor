@@ -1,0 +1,27 @@
+@namespace MikoApp.Anime.Components
+@using Miko.Components.Player.Danmaku
+<IonModal Class="danmaku-modal" IsOpen="@IsOpen" IsOpenChanged="@IsOpenChanged">
+    <IonPage><IonHeader><IonToolbar><ChildContent><IonTitle>发送弹幕</IonTitle></ChildContent><End><IonButtons><IonButton Fill="clear" OnClick="@(() => IsOpenChanged.InvokeAsync(false))">关闭</IonButton></IonButtons></End></IonToolbar></IonHeader>
+        <IonContent><div class="page-padding">
+            <div class="comment-form"><IonInput Class="danmaku-input" Placeholder="说出这一刻的想法" Maxlength="60" @bind-Value="_text" /><IonButton Class="send-danmaku" Size="small" OnClick="Send">发送</IonButton></div>
+            <IonSegment @bind-Value="_mode"><IonSegmentButton Value="Scroll"><IonLabel>滚动弹幕</IonLabel></IonSegmentButton><IonSegmentButton Value="Top"><IonLabel>顶部弹幕</IonLabel></IonSegmentButton><IonSegmentButton Value="Bottom"><IonLabel>底部弹幕</IonLabel></IonSegmentButton></IonSegment>
+            <div class="color-options">@foreach (var color in Colors) { <IonButton Class="danmaku-color" Size="small" Fill="clear" OnClick="@(() => _color = color)"><span class="color-swatch" style="@(new Style { BackgroundColor = Color.FromHex(color) })">@(_color == color ? "✓" : "")</span></IonButton> }</div>
+            <IonNote>弹幕仅在本机显示，云端发送暂未开放</IonNote><Notice Message="@_notice" />
+        </div></IonContent>
+    </IonPage>
+</IonModal>
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public Func<TimeSpan> Position { get; set; } = () => TimeSpan.Zero;
+    [Parameter] public EventCallback<DanmakuItem> OnSent { get; set; }
+    private string? _text, _notice;
+    private string _mode = "Scroll", _color = "#ffffff";
+    private static readonly string[] Colors = ["#ffffff", "#ff4545", "#ffe331", "#00b4e8", "#27bf4f", "#ed8d24", "#c852d0"];
+    private async Task Send()
+    {
+        if (string.IsNullOrWhiteSpace(_text)) { _notice = "请输入弹幕内容。"; return; }
+        await OnSent.InvokeAsync(new DanmakuItem(Position() + TimeSpan.FromMilliseconds(250), _text.Trim(), Enum.Parse<DanmakuMode>(_mode), Color.FromHex(_color)));
+        _text = ""; _notice = null; await IsOpenChanged.InvokeAsync(false);
+    }
+}

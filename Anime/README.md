@@ -1,0 +1,94 @@
+# Anime
+
+基于 Miko.Ionic 的原生动漫应用。UI 由 Razor + SkiaSharp 绘制，视频使用 `Miko.Components.Player` 和系统解码器。
+
+## 运行
+
+在仓库根目录执行：
+
+```powershell
+dotnet build
+dotnet run --project Anime/MikoApp.Anime.Desktop
+# 带设备选择、横竖屏和 MCP 检查工具
+dotnet run --project Anime/MikoApp.Anime.Simulator
+```
+
+默认动态发现 Lanerc API 并加载线上内容。发现失败时明确显示内置预览，点击“重试”重新连接。离线演示：
+
+```powershell
+$env:ANIME_OFFLINE = '1'
+dotnet run --project Anime/MikoApp.Anime.Desktop
+Remove-Item Env:ANIME_OFFLINE
+```
+
+## 页面与行为
+
+- 三栏导航：首页、福利、我的；开屏自动进入首页。
+- 首页轮播、日漫/剧场版筛选与分页、搜索与搜索历史、排行榜、周排期。
+- 详情、分线路选集、简介面板、评论分页、收藏、原生视频播放、横屏全屏、弹幕颜色与位置面板。
+- 登录、验证码注册、找回密码、个人资料、退出登录、云端收藏、观看历史、离线缓存和消息空态。
+- 未恢复完整协议的福利、下载、消息等功能保留 UI 和明确提示，不伪造成功结果。
+
+`LanercClient` 封装 API.md 的 36 个操作：域名发现/健康检查、签名、JSON AES-ECB、Protobuf/AES-GCM、账户与验证码、收藏、评论与弹幕、权益接口。Authorization 使用原始 token，密码使用 MD5；POST 的签名仍在 URL。HTTP 重定向关闭，错误保留 HTTP 状态、业务码、消息及重试时间。权益方法仅供后续接入，UI 不调用付费或兑换操作。
+
+`AnimeStore` 管理目录和会话，观看/搜索历史保存至系统 LocalApplicationData/MikoAnime/library.json；可用 `ANIME_DATA_DIR` 指定隔离目录。密码和 token 不写入磁盘，退出应用后需要重新登录。收藏仅在登录后同步，不把预览数据上传为真实收藏。
+
+游客播放根据配置和分集标志进入验证码流程，使用 `expires_in` 管理有效期，不猜测 `expires_at` 的时间单位。弹幕云端颜色/位置枚举尚未确认，接口保留原始 JSON 参数；界面的弹幕明确标注“仅在本机显示”。旧播放接口 body sign、问答编码、付费语义等未知项不作推测。
+
+## 项目
+
+| 项目 | 用途 |
+| --- | --- |
+| MikoApp.Anime | 共享页面、样式、协议、数据服务和内置资源 |
+| MikoApp.Anime.Desktop | 桌面宿主，系统视频后端 |
+| MikoApp.Anime.Simulator | 设备模拟器，MCP 位于 localhost:5800 |
+| MikoApp.Anime.Android | Android 宿主与原生视频后端 |
+| MikoApp.Anime.iOS | iOS 宿主与原生视频后端 |
+| MikoApp.Anime.Verification | 应用内的原生视觉/交互及协议验证工具 |
+
+## 验证
+
+```powershell
+# 隔离账户 fixture：协议、原生点击、输入、弹窗、播放及截图
+dotnet run --project Anime/MikoApp.Anime.Verification
+# iOS 组件模式的同一套视觉交互验证
+dotnet run --project Anime/MikoApp.Anime.Verification -- Anime/artifacts/verification-ios --ios
+# 真实只读接口探测；不登录、不发布评论、不修改资料
+dotnet run --project Anime/MikoApp.Anime.Verification -- --live
+# 真实目录、详情、游客验证码和评论的原生截图；不提交验证码
+dotnet run --project Anime/MikoApp.Anime.Verification -- --live-ui
+# 图片请求头、并发/内存复用、磁盘复用、损坏文件和错误响应验证
+dotnet run --project Anime/MikoApp.Anime.Verification -- --images
+# 真实列表封面与隔离的冷/热缓存验证；默认要求所有图片可达
+dotnet run --project Anime/MikoApp.Anime.Verification -- --live-images
+# 诊断模式：允许非豆瓣图片站不可达，逐项报告，不把占位图算作成功
+dotnet run --project Anime/MikoApp.Anime.Verification -- --live-images --allow-unavailable-images
+# 我的页面安全区：Android/iOS、游客/登录态、横竖屏及无安全区
+dotnet run --project Anime/MikoApp.Anime.Verification -- --safe-area
+# 原生系统播放器诊断；文件内容为媒体 URL 或本地视频路径（建议时长超过 12 秒）
+dotnet run --project Anime/MikoApp.Anime.Verification -- --playback-source <媒体地址文本文件>
+```
+
+截图、布局框和计算样式写入 `Anime/artifacts/`（Git 忽略）。默认视觉验证用隔离 HTTP fixture 完成登录和收藏状态，不使用或保存真实账户。协议检查包括 APK 签名/TXT 向量、业务密文、明文 envelope、Protobuf、GCM tag 篡改及截断拒绝。
+
+2026-11-09 验证：根目录构建及 Desktop/Simulator/Android/iOS 项目编译通过，应用 Razor 无警告。Android 宿主的旧平台 API 和 Miko 平台项目仍存在原有编译警告；iOS 真机打包/签名及移动端实际播放需要对应设备和 Apple 构建环境。Android/iOS 组件模式各完成 28 个原生截图状态检查。桌面系统解码器已播放内置视频；未使用真实账号验证鉴权播放或远程写操作。
+
+线上只读探测成功覆盖发现、首页、配置、筛选、搜索、排行、周表、详情、评论、弹幕。豆瓣图片源要求请求携带其 APK 使用的 Referer 与浏览器 User-Agent；应用图片客户端现已补齐请求头，并将成功图片缓存在 LocalApplicationData/MikoAnime/images（可用 `ANIME_IMAGE_CACHE_DIR` 指定目录）。当前进程内仍复用 Miko 的解码位图缓存；磁盘缓存上限为 128 MiB，失败响应不会缓存。模拟器 MCP 的 DOM/盒模型可用，当前框架的计算样式工具返回内部错误，验证工具直接导出原生计算样式作为补充；页面视觉以独立原生渲染截图交叉检查。
+
+### 封面与缓存修复（2026-11-09）
+
+API 的 `vod_pic` 是完整图片地址，不需要业务解密或改写。原 APK 的图片请求头记录在 `issues/anime/lanerc/analysis/decompiled/pp.txt` 的 `pp+0x1fef8`：`Referer: https://douban.com` 与 Chrome 127 User-Agent。默认请求返回 418，恢复这组头后同一地址返回 200/WebP。请求头仅对 `doubanio.com` 及其子域添加。
+
+`AnimeImageHandler` 接入 Miko 默认 `ResourceManager` 的 HTTP 传输。缓存以完整 URL 的 SHA-256 为键，先读磁盘，命中时不发网络请求；写入前确认图片可以解码，临时文件写完后原子替换。缓存按最近访问时间淘汰；损坏缓存会重新下载，HTTP 错误及返回 200 的无效图片不会缓存。目录不可写时仍显示下载结果。已有内存缓存还会合并并发请求，页面切换复用同一张位图。
+
+本次线上验证：精选 21/21、分类 18/18、搜索 6/6、排行 67/68、周表 5/5、历史 1/1 封面解码成功。新建加载器并禁止图片网络后，109 个不同 URL 全部从磁盘恢复，图片网络请求为 0。排行榜剩余的 `lain.bgm.tv/pic/cover/l/d8/1e/575559_v6ks9.jpg` 在当前网络持续连接超时，使用占位图；此第三方可达性问题仍保留在诊断报告中。截图与日志位于 `Anime/artifacts/image-fix/` 和 `Anime/artifacts/image-fix-verification.log`。
+
+内置预览图片来自仓库参考示例，开屏插画截取自需求提供的开屏画面，仅用于此演示。网络内容与预览数据明确区分。
+
+### 播放故障排查与我的页面安全区（2026-11-10）
+
+测试账号能够登录并解密得到播放地址，但服务返回的 `txmov2.a.yximgs.com` MP4 在当前直连出口的 TLS 握手阶段被重置。Windows 复现 `0xC00D0006`；同一 Android 模拟器中的原版 Lanerc 对同一账号和分集也报 `Failed to open`。使用可访问的 MP4 与 HLS 源时，Windows 系统后端均可渲染画面、推进进度、暂停和跳转后继续播放。
+
+出口复查修正了此前“外部媒体源故障”的结论：本机 `127.0.0.1:7890` 对视频域名实际走 DIRECT；用现有节点的独立临时代理确认更换出口后，旧地址及重新解析的同一地址均返回 206 和有效 MP4 文件头（各读取 4096 字节）。源文件仍然可用，失败与当前出口/路径有关，具体黑名单触发规则尚未证实。原版的 5 秒支持弹窗在媒体加载之后触发，倒计时和跳过回调没有额外播放鉴权请求，因此未加入猜测性的延时或修改解码器。详见 [播放访问限制排查](PLAYBACK_INVESTIGATION.md)。临时代理已停止；此项未标为应用内播放已修复。
+
+“我的”页的账号摘要现位于 `IonHeader`/`IonToolbar`，自动避开状态栏和刘海；下方列表由 `IonContent` 滚动，并留出左右安全边距。实际 Android API 36 模拟器和两种 Ionic 模式的原生布局验证通过，覆盖游客/登录态、横竖屏、零安全区和账号入口点击。截图在 `Anime/artifacts/safe-area-fix/`。

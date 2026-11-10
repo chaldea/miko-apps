@@ -1,0 +1,20 @@
+@page "/timetable"
+@namespace MikoApp.Anime.Pages
+@inherits AsyncPage
+<IonPage>
+    <PageHeader Title="番剧排期表" />
+    <IonSegment Class="week-segment" @bind-Value="_day">@for (var i = 0; i < Days.Length; i++) { <IonSegmentButton Value="@i.ToString()"><IonLabel>@Days[i]</IonLabel></IonSegmentButton> }</IonSegment>
+    <IonContent><div class="page-padding">
+        <PageStatus Busy="@Busy" Message="@Error" OnRetry="Load" />
+        <PosterGrid Titles="@Current" ShowSchedule="@Store.IsPreview" />
+        @if (!Busy && Current.Count == 0 && Error is null) { <div class="empty-state">今日暂无更新，看看其他日期吧</div> }
+    </div></IonContent>
+</IonPage>
+@code {
+    private string _day = ((int)DateTime.Now.DayOfWeek == 0 ? 6 : (int)DateTime.Now.DayOfWeek - 1).ToString();
+    private static readonly string[] Days = ["一", "二", "三", "四", "五", "六", "日"];
+    private IReadOnlyList<IReadOnlyList<AnimeTitle>> _days = [];
+    private IReadOnlyList<AnimeTitle> Current => _days.Count > int.Parse(_day) ? _days[int.Parse(_day)] : [];
+    protected override Task OnInitializedAsync() => Load();
+    private Task Load() => Run(async () => _days = await Store.WeekAsync(Lifetime.Token));
+}

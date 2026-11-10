@@ -1,0 +1,28 @@
+@page "/profile"
+@namespace MikoApp.Anime.Pages
+@inherits AsyncPage
+<IonPage>
+    <PageHeader Title="个人中心" BackHref="/user" />
+    <IonContent Class="soft-content"><div class="page-padding">
+        <IonList>
+            <IonItem><ChildContent><IonLabel>头像</IonLabel></ChildContent><End><IonAvatar Class="search-avatar"><img src="@Store.Profile.Avatar" /></IonAvatar></End></IonItem>
+            <IonItem><ChildContent><IonLabel>邮箱</IonLabel></ChildContent><End><IonNote>@Store.Profile.Email</IonNote></End></IonItem>
+            <IonItem><IonInput Class="profile-nickname" Label="昵称" @bind-Value="_nickname" /></IonItem>
+            <IonItem><IonInput Class="profile-qq" Label="QQ" Placeholder="未绑定" @bind-Value="_qq" /></IonItem>
+            <IonItem Href="/forgot" Detail="true"><IonLabel>密码 ········</IonLabel></IonItem>
+        </IonList>
+        <IonButton Class="save-profile" Expand="block" Disabled="@Busy" OnClick="Save">保存信息</IonButton>
+        <PageStatus Busy="@Busy" Message="@(Error ?? _message)" />
+    </div></IonContent>
+    <IonFooter><IonToolbar><IonButton Class="sign-out" Expand="block" Color="danger" OnClick="SignOut">@(Store.Profile.SignedIn ? "退出登录" : "前往登录")</IonButton></IonToolbar></IonFooter>
+</IonPage>
+@code {
+    private string? _nickname, _qq, _message;
+    protected override void OnInitialized() { _nickname = Store.Profile.Nickname; _qq = Store.Qq; }
+    private Task Save() => Run(async () =>
+    {
+        if (string.IsNullOrWhiteSpace(_nickname)) throw new LanercException("昵称不能为空。");
+        await Store.UpdateProfileAsync(_nickname.Trim(), _qq?.Trim() ?? "", Lifetime.Token); _message = "个人信息已保存。";
+    });
+    private void SignOut() { var signed = Store.Profile.SignedIn; Store.SignOut(); NavigationManager?.NavigateTo(signed ? "/user" : "/login"); }
+}

@@ -1,0 +1,77 @@
+@page "/login"
+@page "/register"
+@page "/forgot"
+@namespace MikoApp.Anime.Pages
+@inherits AsyncPage
+@inject LanercClient Api
+<IonPage>
+    <PageHeader Title="" BackHref="/user" />
+    <IonContent><div class="auth-page">
+        <h1 class="auth-title">@(IsRegister ? "注册'" : IsForgot ? "找回密码'" : "登录'")</h1>
+        <p class="auth-subtitle">@(IsRegister ? "加入我们的大家庭吧~" : IsForgot ? "让热爱继续，找回你的账号" : "登录后即可享受更多权益~")</p>
+        <IonList Class="auth-fields">
+            <IonItem><IonInput Class="auth-account" Placeholder="邮箱" Type="email" Value="@_account" ValueChanged="AccountChanged" /></IonItem>
+            @if (IsRegister || IsForgot)
+            {
+                <IonItem>
+                    <ChildContent><IonInput Class="auth-code" Placeholder="验证码" @bind-Value="_code" /></ChildContent>
+                    <End><IonButton Class="send-code" Fill="clear" Size="small" Disabled="@Busy" OnClick="SendCode">获取验证码</IonButton></End>
+                </IonItem>
+                <IonNote>请查收邮箱验证码，验证码有效期以邮件提示为准</IonNote>
+            }
+            @if (IsRegister)
+            {
+                <IonItem><IonInput Class="auth-nickname" Placeholder="昵称" Maxlength="30" @bind-Value="_nickname" /></IonItem>
+                <IonItem><IonInput Class="auth-qq" Placeholder="QQ（可为空，用于获取QQ头像）" @bind-Value="_qq" /></IonItem>
+            }
+            <IonItem><IonInput Class="auth-password" Placeholder="密码" Type="password" @bind-Value="_password" /></IonItem>
+            @if (IsRegister || IsForgot) { <IonItem><IonInput Class="auth-confirm" Placeholder="重复密码" Type="password" @bind-Value="_confirm" /></IonItem> }
+        </IonList>
+        <PageStatus Busy="@Busy" Message="@(Error ?? _message)" />
+        <IonButton Class="auth-submit" Expand="block" Disabled="@Busy" OnClick="Submit">@(IsRegister ? "注册" : IsForgot ? "重置密码" : "登录")</IonButton>
+        <div class="auth-links">
+            @if (IsRegister || IsForgot) { <IonButton Fill="clear" Size="small" Href="/login">已有账号？立即登录</IonButton> }
+            else { <IonButton Fill="clear" Size="small" Href="/register">立即注册</IonButton><IonNote>｜</IonNote><IonButton Fill="clear" Size="small" Href="/forgot">找回密码</IonButton> }
+        </div>
+    </div></IonContent>
+</IonPage>
+@code {
+    private bool IsRegister => NavigationManager?.CurrentPath == "/register";
+    private bool IsForgot => NavigationManager?.CurrentPath == "/forgot";
+    private string? _account, _password, _confirm, _nickname, _qq, _code, _mask, _message;
+    private DateTimeOffset? _expires;
+    private void AccountChanged(string? value) { _account = value; _mask = null; _expires = null; _message = null; }
+    private void ValidateAccount()
+    {
+        if (!System.Net.Mail.MailAddress.TryCreate(_account?.Trim(), out _)) throw new LanercException("请输入有效的邮箱地址。");
+    }
+    private Task SendCode() => Run(async () =>
+    {
+        ValidateAccount();
+        var result = IsRegister ? await Api.RegisterCodeAsync(_account!.Trim(), Lifetime.Token) : await Api.ForgotCodeAsync(_account!.Trim(), Lifetime.Token);
+        _mask = result.Text("code_mask");
+        if (string.IsNullOrEmpty(_mask)) throw new LanercException("验证码发送失败，请重试。");
+        _expires = result.Int("expires_in") > 0 ? DateTimeOffset.UtcNow.AddSeconds(result.Int("expires_in")) : null;
+        _message = "验证码已发送，请查收邮箱。";
+    });
+    private Task Submit() => Run(async () =>
+    {
+        ValidateAccount();
+        if (string.IsNullOrEmpty(_password)) throw new LanercException("请输入密码。");
+        if (IsRegister || IsForgot)
+        {
+            if (_password != _confirm) throw new LanercException("两次输入的密码不一致。");
+            if (string.IsNullOrEmpty(_mask) || string.IsNullOrWhiteSpace(_code)) throw new LanercException("请先获取并填写邮箱验证码。");
+            if (_expires <= DateTimeOffset.UtcNow) throw new LanercException("验证码已过期，请重新获取。");
+            if (IsRegister)
+            {
+                if (string.IsNullOrWhiteSpace(_nickname)) throw new LanercException("请输入昵称。");
+                Store.ApplySession(await Api.RegisterAsync(_nickname.Trim(), _password, _qq?.Trim() ?? "", _mask, _code.Trim(), Lifetime.Token));
+            }
+            else { await Api.ForgotPasswordAsync(_code.Trim(), _password, _mask, Lifetime.Token); _password = _confirm = ""; NavigationManager?.NavigateTo("/login"); return; }
+        }
+        else await Store.LoginAsync(_account!.Trim(), _password, Lifetime.Token);
+        _password = _confirm = "";
+        NavigationManager?.NavigateTo("/user");
+    });
+}

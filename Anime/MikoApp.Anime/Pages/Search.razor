@@ -1,0 +1,40 @@
+@page "/search"
+@namespace MikoApp.Anime.Pages
+@inherits AsyncPage
+<IonPage>
+    <IonHeader><IonToolbar>
+        <Start><IonButtons><IonBackButton DefaultHref="/home" Text="" /></IonButtons></Start>
+        <ChildContent><IonSearchbar Class="search-query" Placeholder="今天你想看些什么？" @bind-Value="_query" OnChange="SearchChanged" /></ChildContent>
+        <End><IonButtons><IonButton Class="submit-search" Disabled="@Busy" OnClick="SearchNow">搜索</IonButton></IonButtons></End>
+    </IonToolbar></IonHeader>
+    <IonContent><div class="page-padding">
+        <PageStatus Busy="@Busy" Message="@Error" OnRetry="SearchNow" />
+        @if (!_searched)
+        {
+            <div class="section-heading"><h2 class="section-title">历史记录</h2><IonButton Size="small" Fill="clear" OnClick="Store.ClearSearch">清空</IonButton></div>
+            <div class="search-tags">@foreach (var word in Store.SearchHistory) { <IonButton @key="word" Size="small" Fill="clear" OnClick="@(() => SearchWord(word))">@word</IonButton> }</div>
+            @if (Store.SearchHistory.Count == 0) { <div class="empty-state">搜索喜欢的番剧，开启追番之旅</div> }
+            <h2 class="section-title">热门推荐</h2>
+            <div class="search-tags">@foreach (var title in Store.Hot) { <IonButton Size="small" Fill="clear" OnClick="@(() => SearchWord(title.Title))">@title.Title</IonButton> }</div>
+        }
+        else
+        {
+            <div class="section-heading"><h2 class="section-title">搜索结果 · @_results.Count</h2><IonButton Fill="clear" Size="small" OnClick="@(() => _searched = false)">历史记录</IonButton></div>
+            <PosterGrid Titles="@_results" />
+            @if (!Busy && _results.Count == 0 && Error is null) { <div class="empty-state">未找到相关番剧，换个关键词试试。</div> }
+        }
+        @if (Store.IsPreview) { <IonNote>当前搜索范围：内置预览内容</IonNote> }
+    </div></IonContent>
+</IonPage>
+@code {
+    private string? _query;
+    private bool _searched;
+    private IReadOnlyList<AnimeTitle> _results = [];
+    private Task SearchChanged(string? value) => string.IsNullOrWhiteSpace(value) ? Task.CompletedTask : SearchNow();
+    private Task SearchWord(string word) { _query = word; return SearchNow(); }
+    private Task SearchNow() => Run(async () =>
+    {
+        if (string.IsNullOrWhiteSpace(_query)) { _searched = false; return; }
+        _results = await Store.SearchAsync(_query, Lifetime.Token); _searched = true;
+    });
+}

@@ -1,0 +1,37 @@
+@page "/user"
+@namespace MikoApp.Anime.Pages
+<IonPage>
+<IonHeader Class="user-header"><IonToolbar><div class="page-padding user-profile">
+    <IonList><IonItem Href="@(Store.Profile.SignedIn ? "/profile" : "/login")" Lines="none" Detail="true" Class="profile-summary">
+        <Start><IonAvatar><img src="@Store.Profile.Avatar" /></IonAvatar></Start>
+        <ChildContent><IonLabel><div class="row-title">@(Store.Profile.SignedIn ? Store.Profile.Nickname : "登录/注册")</div><IonNote>@(Store.Profile.SignedIn ? Store.Group : "不再孤单，进入追番世界吧~")</IonNote></IonLabel></ChildContent>
+    </IonItem></IonList>
+</div></IonToolbar></IonHeader>
+<IonContent Class="soft-content"><div class="page-padding user-page">
+    @if (Store.Profile.SignedIn) { <IonCard Class="support-card" Button="true" OnClick="@(() => NavigationManager?.NavigateTo("/vip"))"><IonCardContent>支持我们，畅享无广告追番体验 ～</IonCardContent></IonCard> }
+    <IonCard Class="flat-card"><IonGrid><IonRow>
+        @foreach (var link in Shortcuts) { <IonCol Size="3"><IonButton Class="user-shortcut" Expand="block" Fill="clear" Href="@link.Route"><IonIcon Icon="@link.Icon" /><IonLabel>@link.Title</IonLabel></IonButton></IonCol> }
+    </IonRow></IonGrid>
+    @if (Store.History.FirstOrDefault() is { } recent && Store.Find(recent.AnimeId) is { } title)
+    {
+        <IonList><IonItem Class="continue-watching" Button="true" OnClick="@(() => AnimeNavigation.Open(title.Id))" Lines="none" Detail="true"><ChildContent><IonLabel>@title.Title</IonLabel></ChildContent><End><IonNote>继续追番</IonNote></End></IonItem></IonList>
+    }
+    </IonCard>
+    <IonGrid><IonRow><IonCol Size="6"><IonButton Expand="block" Fill="clear" OnClick="@(() => Show("入站问答", "问答功能暂未开放，敬请期待。"))">入站问答</IonButton></IonCol><IonCol Size="6"><IonButton Expand="block" Fill="clear" OnClick="@(() => Show("主题切换", "当前使用清新浅色主题。"))">主题切换</IonButton></IonCol></IonRow></IonGrid>
+    <IonList Class="user-menu">
+        @foreach (var item in Menu) { <IonItem Button="true" Detail="true" OnClick="@(() => Show(item.Title, item.Message))"><Start><IonIcon Icon="@item.Icon" /></Start><ChildContent><IonLabel>@item.Title</IonLabel></ChildContent></IonItem> }
+    </IonList>
+</div></IonContent></IonPage>
+<IonModal Class="info-modal" @bind-IsOpen="_open"><IonPage><PageHeader Title="@_title" /><IonContent><div class="page-padding"><p class="synopsis">@_message</p><IonButton Expand="block" OnClick="@(() => _open = false)">知道了</IonButton></div></IonContent></IonPage></IonModal>
+@code {
+    private bool _open;
+    private string _title = "", _message = "";
+    private void Show(string title, string message) { _title = title; _message = message; _open = true; }
+    private static readonly (string Title, string Icon, string Route)[] Shortcuts = [("我的收藏", Ionicons.HeartOutline, "/favorites"), ("历史记录", Ionicons.TimeOutline, "/history"), ("离线缓存", Ionicons.FolderOpenOutline, "/downloads"), ("我的消息", Ionicons.ChatbubblesOutline, "/messages")];
+    private static readonly (string Title, string Icon, string Message)[] Menu = [
+        ("建议反馈", Ionicons.DocumentTextOutline, "感谢你的建议！反馈入口暂未开放。"),
+        ("分享应用", Ionicons.ShareSocialOutline, "Anime · 每一份热爱，都有回响。"),
+        ("免责声明", Ionicons.InformationCircleOutline, "本应用为多平台界面演示。内容由远程服务提供，请尊重作品版权。"),
+        ("检查更新", Ionicons.RefreshOutline, "当前版本 1.0.0"),
+        ("数据恢复", Ionicons.ServerOutline, "观看记录保存在当前设备。登录后可在“我的收藏”同步云端收藏。")];
+}

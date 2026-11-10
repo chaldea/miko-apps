@@ -1,0 +1,26 @@
+@page "/trending"
+@namespace MikoApp.Anime.Pages
+@inherits AsyncPage
+<IonPage>
+    <PageHeader Title="热度排行榜" />
+    <IonSegment Scrollable="true" @bind-Value="_group">@foreach (var group in _groups) { <IonSegmentButton Value="@group.Name"><IonLabel>@group.Name</IonLabel></IonSegmentButton> }</IonSegment>
+    <IonContent><div class="page-padding">
+        <PageStatus Busy="@Busy" Message="@Error" OnRetry="Load" />
+        @foreach (var title in _groups.FirstOrDefault(g => g.Name == _group)?.Titles ?? [])
+        {
+            <IonCard @key="title.Id" Class="ranking-card" Button="true" OnClick="@(() => AnimeNavigation.Open(title.Id))">
+                <div class="ranking-row"><img class="ranking-image" src="@title.PosterSource" placeholder="res://Assets/poster-placeholder.svg" /><div class="ranking-copy">
+                    <div class="row-title">@title.Title</div><IonNote>@title.Year · @title.Status</IonNote>
+                    <p class="description">@title.Description</p><IonBadge Color="light">@title.Genre</IonBadge>
+                </div></div>
+            </IonCard>
+        }
+        @if (!Busy && _groups.Count == 0 && Error is null) { <div class="empty-state">暂无排行数据</div> }
+    </div></IonContent>
+</IonPage>
+@code {
+    private IReadOnlyList<RankGroup> _groups = [];
+    private string? _group;
+    protected override Task OnInitializedAsync() => Load();
+    private Task Load() => Run(async () => { _groups = await Store.RankAsync(Lifetime.Token); _group = _groups.FirstOrDefault()?.Name; });
+}

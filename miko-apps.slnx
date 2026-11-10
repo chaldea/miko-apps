@@ -1,0 +1,24 @@
+<Solution>
+  <Folder Name="/Anime/">
+    <Project Path="Anime/MikoApp.Anime.Android/MikoApp.Anime.Android.csproj" />
+    <Project Path="Anime/MikoApp.Anime.Desktop/MikoApp.Anime.Desktop.csproj" />
+    <Project Path="Anime/MikoApp.Anime.iOS/MikoApp.Anime.iOS.csproj" />
+    <Project Path="Anime/MikoApp.Anime.Simulator/MikoApp.Anime.Simulator.csproj" />
+    <Project Path="Anime/MikoApp.Anime/MikoApp.Anime.csproj" />
+    <Project Path="Anime/MikoApp.Anime.Verification/MikoApp.Anime.Verification.csproj" />
+  </Folder>
+  <Folder Name="/miko/" />
+  <Folder Name="/miko/src/">
+    <Project Path="miko/src/Miko.Android/Miko.Android.csproj" />
+    <Project Path="miko/src/Miko.DevTools/Miko.DevTools.csproj" />
+    <Project Path="miko/src/Miko.Ionic/Miko.Ionic.csproj" />
+    <Project Path="miko/src/Miko.iOS/Miko.iOS.csproj" />
+    <Project Path="miko/src/Miko.McpServer/Miko.McpServer.csproj" />
+    <Project Path="miko/src/Miko.Native/Miko.Native.csproj" />
+    <Project Path="miko/src/Miko.Razor.Compiler/Miko.Razor.Compiler.csproj" />
+    <Project Path="miko/src/Miko.Simulator/Miko.Simulator.csproj" />
+    <Project Path="miko/src/Miko.SourceGenerators/Miko.SourceGenerators.csproj" />
+    <Project Path="miko/src/Miko.Windowing/Miko.Windowing.csproj" />
+    <Project Path="miko/src/Miko/Miko.csproj" />
+  </Folder>
+</Solution>

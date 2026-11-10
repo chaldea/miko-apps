@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-ios</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
+    <ApplicationId>com.miko.mikoappanime</ApplicationId>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <StartupType>iOS</StartupType>
+  </PropertyGroup>
+  <Import Project="../../Startup.props" />
+
+  <ItemGroup>
+    <ProjectReference Include="..\MikoApp.Anime\MikoApp.Anime.csproj" />
+  </ItemGroup>
+
+</Project>

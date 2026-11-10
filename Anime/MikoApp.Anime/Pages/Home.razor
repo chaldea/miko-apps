@@ -1,0 +1,74 @@
+@page "/home"
+@namespace MikoApp.Anime.Pages
+@inherits AsyncPage
+<IonPage>
+    <IonHeader>
+        <IonToolbar Class="home-toolbar">
+            <Start><IonButtons><IonButton Href="/user"><IconOnly><IonAvatar Class="search-avatar"><img src="@Store.Profile.Avatar" /></IonAvatar></IconOnly></IonButton></IonButtons></Start>
+            <ChildContent><IonSearchbar Class="home-search" Placeholder="今天你想看些什么？" OnFocus="@(() => NavigationManager?.NavigateTo("/search"))" /></ChildContent>
+            <End><IonButtons><IonButton Href="/history"><IconOnly><IonIcon Icon="@Ionicons.TimeOutline" /></IconOnly></IonButton></IonButtons></End>
+        </IonToolbar>
+        <IonSegment Class="home-segment" Value="@_category" ValueChanged="SelectCategory" Disabled="@Busy">
+            <IonSegmentButton Value="精选"><IonLabel>精选</IonLabel></IonSegmentButton>
+            @foreach (var category in Store.Categories) { <IonSegmentButton @key="category.Id" Value="@category.Name"><IonLabel>@category.Name</IonLabel></IonSegmentButton> }
+        </IonSegment>
+    </IonHeader>
+    <IonContent><div class="page-padding">
+        <PageStatus Busy="@Busy" Message="@(Error ?? Store.ConnectionError)" OnRetry="Refresh" />
+        @if (_category == "精选")
+        {
+            @if (Store.Banners.Count > 0)
+            {
+                <IonSlides Class="home-banner" Pagination="true" Autoplay="true" AutoplayDelay="5000" Loop="true">
+                    @foreach (var banner in Store.Banners)
+                    {
+                        <IonSlide @key="banner.AnimeId"><IonCard Class="banner-card" Button="true" OnClick="@(() => AnimeNavigation.Open(banner.AnimeId))"><img class="banner-image" src="@banner.ImageSource" /></IonCard></IonSlide>
+                    }
+                </IonSlides>
+            }
+            <IonGrid Class="quick-links"><IonRow>
+                <IonCol Size="6"><IonButton Expand="block" Fill="clear" Href="/trending"><Start><IonIcon Icon="@Ionicons.BarChartOutline" /></Start><ChildContent>热度排行榜</ChildContent></IonButton></IonCol>
+                <IonCol Size="6"><IonButton Expand="block" Fill="clear" Href="/timetable"><Start><IonIcon Icon="@Ionicons.CalendarOutline" /></Start><ChildContent>番剧排期表</ChildContent></IonButton></IonCol>
+            </IonRow></IonGrid>
+            <h2 class="section-title">热门新番</h2><PosterGrid Titles="@Store.Hot" />
+            @foreach (var category in Store.Categories)
+            {
+                <div class="section-heading"><h2 class="section-title">@category.Name</h2><IonButton Size="small" Fill="clear" OnClick="@(() => SelectCategory(category.Name))">更多 ›</IonButton></div>
+                <PosterGrid Titles="@category.Titles" />
+            }
+        }
+        else if (CurrentCategory is { } selected)
+        {
+            <FilterBar Options="@selected.Genres" Value="@_genre" ValueChanged="SetGenre" />
+            <FilterBar Options="@selected.Years" Value="@_year" ValueChanged="SetYear" />
+            <FilterBar Options="@Sorts" Value="@_sort" ValueChanged="SetSort" />
+            <PosterGrid Titles="@_results" />
+            @if (!Busy && _results.Count == 0) { <div class="empty-state">暂无匹配番剧，试试其他筛选条件。</div> }
+            @if (_more) { <IonButton Expand="block" Fill="clear" Disabled="@Busy" OnClick="More">加载更多</IonButton> }
+        }
+    </div></IonContent>
+</IonPage>
+@code {
+    private string _category = "精选", _genre = "全部", _year = "全部", _sort = "按时间";
+    private int _page = 1;
+    private bool _more;
+    private IReadOnlyList<AnimeTitle> _results = [];
+    private static readonly string[] Sorts = ["按时间", "按评分"];
+    private AnimeCategory? CurrentCategory => Store.Categories.FirstOrDefault(c => c.Name == _category);
+    protected override Task OnInitializedAsync() => Run(() => Store.InitializeAsync(Lifetime.Token));
+    private Task Refresh() => Run(async () => { await Store.RefreshAsync(Lifetime.Token); _category = "精选"; });
+    private async Task SelectCategory(string value) { if (Busy) return; _category = value; _genre = _year = "全部"; await Load(); }
+    private async Task SetGenre(string value) { if (Busy) return; _genre = value; await Load(); }
+    private async Task SetYear(string value) { if (Busy) return; _year = value; await Load(); }
+    private async Task SetSort(string value) { if (Busy) return; _sort = value; await Load(); }
+    private Task More() => Load(true);
+    private Task Load(bool more = false) => Run(async () =>
+    {
+        if (CurrentCategory is not { } category) return;
+        var next = more ? _page + 1 : 1;
+        var rows = await Store.FilterAsync(category, next, _genre, _year, _sort == "按评分", Lifetime.Token);
+        var merged = (more ? _results.Concat(rows) : rows).DistinctBy(t => t.Id).ToArray();
+        _more = rows.Count > 0 && (!more || merged.Length > _results.Count) && !Store.IsPreview;
+        _results = merged; _page = next;
+    });
+}
