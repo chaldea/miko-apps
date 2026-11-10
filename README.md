@@ -9,6 +9,7 @@ This repository provides practical examples of how to build different types of a
 | Application | Description | Documentation |
 | --- | --- | --- |
 | [Anime](Anime/) | A native anime app demonstrating catalog browsing, search, rankings, weekly schedules, title details, episode selection, video playback, favorites, and account screens with Miko.Ionic. Includes Desktop, Android, iOS, and Simulator host projects. | [App guide](Anime/README.md) |
+| [FBox](FBox/) | An IoT gateway management demo with device groups, live monitoring, alarms, history charts, sharing, native scanning and VNC, plus a configurable REST/SignalR client. Includes Desktop, Android, iOS, Simulator and native visual verification projects. | [App guide](FBox/README.md) |
 
 To list a new sample, add a row to this table with its directory, a short description, and a link to its README. Keep app-specific setup, features, and limitations in that app's README so this table remains the central application index.
 

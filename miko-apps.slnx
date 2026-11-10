@@ -7,8 +7,17 @@
     <Project Path="Anime/MikoApp.Anime/MikoApp.Anime.csproj" />
     <Project Path="Anime/MikoApp.Anime.Verification/MikoApp.Anime.Verification.csproj" />
   </Folder>
+  <Folder Name="/FBox/">
+    <Project Path="FBox/MikoApp.FBox.Android/MikoApp.FBox.Android.csproj" />
+    <Project Path="FBox/MikoApp.FBox.Desktop/MikoApp.FBox.Desktop.csproj" />
+    <Project Path="FBox/MikoApp.FBox.iOS/MikoApp.FBox.iOS.csproj" />
+    <Project Path="FBox/MikoApp.FBox.Simulator/MikoApp.FBox.Simulator.csproj" />
+    <Project Path="FBox/MikoApp.FBox.Verification/MikoApp.FBox.Verification.csproj" />
+    <Project Path="FBox/MikoApp.FBox/MikoApp.FBox.csproj" />
+  </Folder>
   <Folder Name="/miko/" />
   <Folder Name="/miko/src/">
+    <Project Path="miko/src/Miko.Components/Miko.Components.csproj" />
     <Project Path="miko/src/Miko.Android/Miko.Android.csproj" />
     <Project Path="miko/src/Miko.DevTools/Miko.DevTools.csproj" />
     <Project Path="miko/src/Miko.Ionic/Miko.Ionic.csproj" />

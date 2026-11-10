@@ -1,0 +1,35 @@
+@page "/history"
+@inherits FBoxPage
+
+<IonPage>
+    <PageHeader Title="@Store.Selected?.Title" />
+    <IonContent>
+        <Fixed><IonFab Vertical="bottom" Horizontal="end"><div class="row"><IonFabButton Size="small" OnClick="() => _filter = !_filter"><IonIcon Icon="search-outline" /></IonFabButton><IonFabButton Class="toggle-chart" Size="small" OnClick="() => _chart = !_chart"><IonIcon Icon="@(_chart ? "list-outline" : "analytics-outline")" /></IonFabButton></div></IonFab></Fixed>
+        <ChildContent>
+            <PageStatus />
+            <div class="hint">数据名称：@Store.HistoryName</div>
+            @if (_filter)
+            {
+                <IonList><IonItem><IonSelect Label="数据通道" @bind-Value="_channel" OkText="确定" CancelText="取消">@foreach (var channel in Store.HistoryChannels) { <IonSelectOption Value="@channel.Id.ToString()">@channel.Name</IonSelectOption> }</IonSelect></IonItem></IonList>
+                <div class="date-fields"><IonInput Class="history-begin" Label="起始日期" LabelPlacement="stacked" @bind-Value="_begin" /><IonInput Class="history-end" Label="结束日期" LabelPlacement="stacked" @bind-Value="_end" /></div><IonButton Class="history-query" Expand="block" OnClick="Load">查询</IonButton>
+            }
+            @if (Store.Samples.Count == 0 && !Store.Busy) { <EmptyState Icon="analytics-outline" Text="此时间范围暂无历史数据" /> }
+            else if (_chart) { <HistoryChart Samples="@Store.Samples" /> }
+            else
+            {
+                <table class="history-table"><thead><tr><th>时间</th><th>通道1</th></tr></thead><tbody>@foreach (var sample in Store.Samples.OrderByDescending(s => s.Time)) { <tr><td>@sample.Time.ToString("yyyy-MM-dd HH:mm:ss")</td><td><strong>@sample.Value.ToString("0.##")</strong></td></tr> }</tbody></table>
+            }
+        </ChildContent>
+    </IonContent>
+</IonPage>
+@code {
+    private bool _chart, _filter;
+    private string? _channel;
+    private string? _begin = "2026-11-03", _end = "2026-11-10";
+    protected override async Task OnInitializedAsync() { if (!Store.Demo) { _begin = DateTime.Today.AddDays(-7).ToString("yyyy-MM-dd"); _end = DateTime.Today.ToString("yyyy-MM-dd"); } await Load(); }
+    private async Task Load()
+    {
+        if (Store.Selected is not { } box) return;
+        await Run(async () => { if (!DateTime.TryParse(_begin, out var begin) || !DateTime.TryParse(_end, out var end)) throw new InvalidOperationException("日期格式应为 yyyy-MM-dd。"); if (long.TryParse(_channel, out var channel)) Store.HistoryChannelId = channel; await Store.LoadHistoryAsync(box, begin, end.AddDays(1).AddTicks(-1)); _channel = Store.HistoryChannelId.ToString(); });
+    }
+}

@@ -1,0 +1,53 @@
+@page "/login"
+@page "/register"
+@page "/forgot-password"
+@inherits FBoxPage
+
+<IonPage>
+    <PageHeader Title="@Title" BackHref="/account" />
+    <IonContent>
+        <PageStatus />
+        <div class="page-padding">
+            <div class="auth-logo">FBox</div><p class="auth-subtitle">连接设备，掌握现场</p>
+            <IonList Class="form-section">
+                <IonItem><IonInput Class="auth-user" Label="@(Login ? "用户名" : "邮箱")" LabelPlacement="stacked" Placeholder="@(Login ? "请输入用户名" : "请输入邮箱地址")" @bind-Value="_user" /></IonItem>
+                @if (!Forgot) { <IonItem><IonInput Class="auth-password" Label="密码" LabelPlacement="stacked" Type="password" Placeholder="请输入密码" @bind-Value="_password" /></IonItem> }
+                @if (!Forgot && !Login) { <IonItem><IonInput Class="auth-confirm" Label="确认密码" LabelPlacement="stacked" Type="password" @bind-Value="_confirm" /></IonItem> }
+            </IonList>
+            <IonButton Class="auth-submit" Expand="block" Disabled="@Store.Busy" OnClick="Submit">@Title</IonButton>
+            @if (Login)
+            {
+                <div class="row"><IonButton Fill="clear" Href="/register">注册账号</IonButton><IonButton Fill="clear" Href="/forgot-password">忘记密码</IonButton></div>
+                <IonButton Class="enter-demo" Fill="outline" Expand="block" OnClick="Demo">体验演示</IonButton>
+                <IonButton Fill="clear" Expand="block" Href="/server-settings">配置服务地址</IonButton>
+            }
+            else { <IonButton Fill="clear" Expand="block" Href="/login">返回登录</IonButton> }
+        </div>
+    </IonContent>
+</IonPage>
+@code {
+    private bool Login => NavigationManager?.CurrentPath == "/login";
+    private bool Forgot => NavigationManager?.CurrentPath == "/forgot-password";
+    private string Title => Login ? "登录" : Forgot ? "找回密码" : "注册";
+    private string? _user, _password, _confirm;
+    protected override void OnInitialized() { base.OnInitialized(); Store.Error = null; Store.Notice = null; }
+    private async Task Demo() { await Store.EnterDemoAsync(); Go("/devices"); }
+    private async Task Submit()
+    {
+        var ok = await Run(async () =>
+        {
+            if (string.IsNullOrWhiteSpace(_user)) throw new InvalidOperationException(Login ? "请输入用户名。" : "请输入邮箱。");
+            if (!Login && !System.Net.Mail.MailAddress.TryCreate(_user, out _)) throw new InvalidOperationException("请输入有效邮箱地址。");
+            if (!Forgot && string.IsNullOrWhiteSpace(_password)) throw new InvalidOperationException("请输入密码。");
+            if (Login) await Store.LoginAsync(_user, _password!);
+            else if (Forgot) await Store.Client.PostAsync("/api/account/forgotpwdByEmail", new { email = _user }, true);
+            else
+            {
+                if (_password!.Length < 8) throw new InvalidOperationException("密码至少需要 8 位。");
+                if (_password != _confirm) throw new InvalidOperationException("两次输入的密码不一致。");
+                await Store.Client.PostAsync("/api/reg/email/confirm", new { email = _user, password = _password }, true);
+            }
+        }, Login ? null : "请求已提交，请检查邮箱并按服务端提示继续。");
+        if (ok && Login) Go("/devices");
+    }
+}

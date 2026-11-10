@@ -1,0 +1,56 @@
+﻿@page "/unified-writing"
+@inherits FBoxPage
+
+<IonPage>
+    <PageHeader Title="统一写" BackHref="/settings"><Actions><IonButton Class="add-write-group" OnClick="AddForm">新增</IonButton></Actions></PageHeader>
+    <IonContent>
+        <PageStatus />
+        <p class="hint">搜索并选择监控点，保存为写入组。写入前请确认目标设备在线且具有写入权限。</p>
+        <IonList>@foreach (var group in _groups) { <IonItem @key="group.Id" Class="write-group" Button="true" Detail="true" OnClick="() => Select(group)"><IonLabel>@group.Name</IonLabel></IonItem> }</IonList>
+        @if (_groups.Count == 0 && !_add && !Store.Busy) { <EmptyState Text="暂无统一写分组" /> }
+        @if (_add)
+        {
+            <IonList Class="form-section">
+                <IonItem><IonInput Class="write-group-name" Label="分组名称" @bind-Value="_name" /></IonItem>
+                <IonItem><IonSelect Label="数据类型" @bind-Value="_type" OkText="确定" CancelText="取消"><IonSelectOption Value="0">位</IonSelectOption><IonSelectOption Value="1">16 位整数</IonSelectOption></IonSelect></IonItem>
+                <IonItem><IonInput Class="write-group-keyword" Label="监控点名称" @bind-Value="_keyword" /></IonItem>
+            </IonList>
+            <IonButton Class="search-write-targets" Expand="block" Fill="outline" Disabled="@Store.Busy" OnClick="Search">搜索监控点</IonButton>
+            <IonList>@foreach (var target in _targets) { <IonItem @key="target"><IonCheckbox @bind-Checked="target.Selected">@target.BoxAlias / @target.PointName</IonCheckbox></IonItem> }</IonList>
+            <IonButton Class="submit save-write-group" Expand="block" Disabled="@Store.Busy" OnClick="Add">保存分组</IonButton>
+        }
+        @if (_selected is not null)
+        {
+            <IonList><SettingRow Label="选中分组" Value="@_selected.Name" /><SettingRow Label="监控点名称" Value="@_selected.Keyword" /><IonItem><IonInput Class="batch-write-value" Label="写入值" Type="number" @bind-Value="_value" /></IonItem></IonList>
+            <IonButton Class="submit batch-write" Expand="block" Disabled="@Store.Busy" OnClick="() => _confirm = true">写入</IonButton>
+        }
+    </IonContent>
+    <IonAlert @bind-IsOpen="_confirm" Header="确认批量写入" Message="将向此分组中的监控点下发写值命令。" Buttons="@_buttons" OnDidDismiss="Confirm" />
+</IonPage>
+@code {
+    private FBoxWriting Writing => new(Store);
+    private List<WriteGroup> _groups = [];
+    private List<WriteTarget> _targets = [];
+    private WriteGroup? _selected;
+    private string? _name, _keyword, _value, _type = "0", _searchType;
+    private bool _add, _confirm;
+    private readonly IonAlertButton[] _buttons = [new() { Text = "取消", Role = "cancel" }, new() { Text = "确定", Role = "confirm" }];
+    protected override async Task OnInitializedAsync() => await Run(async () => _groups = await Writing.GroupsAsync());
+    private void AddForm() { _add = true; _selected = null; _targets = []; StateHasChanged(); }
+    private void Select(WriteGroup group) { _selected = group; _add = false; StateHasChanged(); }
+    private async Task Search() => await Run(async () =>
+    {
+        _targets = await Writing.SearchAsync(_keyword ?? "", int.Parse(_type ?? "0")); _searchType = _type;
+        if (_targets.Count == 0) throw new InvalidOperationException("未找到此类型的可写监控点。");
+    });
+    private async Task Add() => await Run(async () =>
+    {
+        if (_searchType != _type) throw new InvalidOperationException("数据类型已变化，请重新搜索监控点。");
+        await Writing.SaveAsync(new() { Name = _name?.Trim() ?? "", Keyword = _keyword ?? "", DataType = int.Parse(_type ?? "0"), Targets = _targets.Where(t => t.Selected).ToList() });
+        _groups = await Writing.GroupsAsync(); _add = false;
+    }, "分组已保存");
+    private async Task Confirm(IonOverlayDismissEventArgs e)
+    {
+        if (e.Role == "confirm" && _selected is not null) await Run(() => Writing.WriteAsync(_selected, _value ?? ""), "写入命令已提交");
+    }
+}

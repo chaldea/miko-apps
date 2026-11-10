@@ -1,0 +1,19 @@
+@page "/account"
+@inherits FBoxPage
+
+<IonPage>
+    <IonHeader><IonToolbar><IonTitle>我的</IonTitle></IonToolbar></IonHeader>
+    <IonContent>
+        <PageStatus />
+        <div class="profile"><IonIcon Icon="person-circle-outline" /><div><h2>@(Store.Authenticated ? Store.Username : "未登录")</h2><p>@(Store.Demo ? "演示模式 · 本地设备数据" : "FBox 设备管理")</p></div></div>
+        <IonList>
+            <SettingRow Icon="person-outline" Label="账号管理" Href="/account-management" />
+            <SettingRow Icon="settings-outline" Label="全局设置" Href="/settings" />
+            <SettingRow Icon="folder-outline" Label="设备分组" Href="/groups" />
+            <SettingRow Icon="server-outline" Label="服务配置" Href="/server-settings" />
+            <IonItem Button="true" Detail="true" OnClick="Logout"><Start><IonIcon Icon="log-out-outline" Color="primary" /></Start><ChildContent><IonLabel>@(Store.Demo ? "登录真实服务" : "退出登录")</IonLabel></ChildContent></IonItem>
+        </IonList>
+        <p class="hint">FBox for Miko · 1.0.0</p>
+    </IonContent>
+</IonPage>
+@code { private async Task Logout() { await Store.LogoutAsync(); Go("/login"); } }

@@ -1,0 +1,39 @@
+using Miko.DevTools;
+using Miko.McpServer;
+using Miko.Simulator;
+using Miko.Simulator.Native;
+using MikoApp.FBox;
+using Miko.Windowing.Video;
+
+namespace MikoApp.FBox.Simulator;
+
+public static class Program
+{
+    [STAThread]
+    public static void Main(string[] args)
+    {
+        // UseSimulatorNative() supplies simulated Miko.Native capabilities and platform services,
+        // logging calls such as component haptics so they can be observed on the desktop.
+        //
+        // AddDevTools() enables the inspector window for debugging the simulator itself.
+        var context = App.CreateContext(builder =>
+        {
+            builder.UseSystemVideo();
+            // MCP debug server for AI agents: once the simulator window is up it listens on
+            // http://localhost:5801 (localhost only, no authentication) and exposes the DOM,
+            // styles, screenshots, clicks and device switching to MCP clients such as Claude Code.
+            // Only the simulator head references Miko.McpServer; remove this line to turn it off.
+            builder.AddMikoMcpServer(options => options.Port = 5801);
+            builder.UseSimulatorNative();
+            builder.AddDevTools();
+        });
+
+        // Hot reload is wired up inside the shared app assembly, same as the desktop head.
+        App.InitializeHotReload(context);
+
+        // Run the app inside a device simulator window: the app renders into an
+        // independent device-sized canvas on the left, with a Miko-rendered
+        // settings panel (device / orientation / safe area) on the right.
+        context.RunSimulator();
+    }
+}

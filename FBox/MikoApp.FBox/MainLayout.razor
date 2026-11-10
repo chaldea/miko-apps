@@ -1,0 +1,41 @@
+@inherits LayoutComponentBase
+@namespace MikoApp.FBox
+
+<IonApp Class="fbox-app">
+    <IonTabs>
+        <Content>@Body</Content>
+        <Bottom>
+            @if (IsMain)
+            {
+                <IonTabBar>
+                    <IonTabButton Href="/devices" Selected="@(Path is "/" or "/devices")"><IonIcon Icon="list-outline" /><IonLabel>设备列表</IonLabel></IonTabButton>
+                    <IonTabButton OnClick="OpenAdd"><IonIcon Icon="scan-outline" /><IonLabel>添加设备</IonLabel></IonTabButton>
+                    <IonTabButton Href="/messages" Selected="@(Path == "/messages")"><IonIcon Icon="chatbox-ellipses-outline" /><IonLabel>消息中心</IonLabel></IonTabButton>
+                    <IonTabButton Href="/account" Selected="@(Path == "/account")"><IonIcon Icon="person-outline" /><IonLabel>我的</IonLabel></IonTabButton>
+                </IonTabBar>
+            }
+            @if (IsBox)
+            {
+                <IonTabBar>
+                    <IonTabButton OnClick="@(() => GoBox("/monitor"))" Selected="@(Path == "/monitor")"><IonIcon Icon="pulse-outline" /><IonLabel>数据监控</IonLabel></IonTabButton>
+                    <IonTabButton OnClick="@(() => GoBox("/alarms"))" Selected="@(Path == "/alarms")"><IonIcon Icon="document-text-outline" /><IonLabel>报警记录</IonLabel></IonTabButton>
+                    <IonTabButton OnClick="@(() => GoBox("/history"))" Selected="@(Path == "/history")"><IonIcon Icon="time-outline" /><IonLabel>历史记录</IonLabel></IonTabButton>
+                    <IonTabButton OnClick="@(() => GoBox("/remote"))" Selected="@(Path == "/remote")"><IonIcon Icon="desktop-outline" /><IonLabel>远程监控</IonLabel></IonTabButton>
+                    <IonTabButton OnClick="@(() => GoBox("/information"))" Selected="@(Path == "/information")"><IonIcon Icon="grid-outline" /><IonLabel>更多</IonLabel></IonTabButton>
+                </IonTabBar>
+            }
+        </Bottom>
+    </IonTabs>
+    <IonActionSheet @bind-IsOpen="_add" Header="添加设备" Buttons="@_addButtons" OnDidDismiss="AddDismissed" />
+</IonApp>
+
+@code {
+    private string Path => NavigationManager?.CurrentPath ?? "/";
+    private bool IsMain => Path is "/" or "/devices" or "/messages" or "/account";
+    private bool IsBox => Path is "/monitor" or "/alarms" or "/history" or "/remote" or "/information";
+    private bool _add;
+    private readonly IonActionSheetButton[] _addButtons = [new() { Text = "扫码添加", Data = "/scan" }, new() { Text = "序列号密码添加", Data = "/box-add" }, new() { Text = "分享码添加", Data = "/share-add" }, new() { Text = "取消", Role = "cancel" }];
+    private void OpenAdd() { _add = true; StateHasChanged(); }
+    private void GoBox(string path) => NavigationManager?.NavigateTo(path);
+    private void AddDismissed(IonOverlayDismissEventArgs e) { if (e.Data is string path) NavigationManager?.NavigateTo(path); }
+}

@@ -1,0 +1,64 @@
+@page "/basic-information"
+@page "/system-settings"
+@page "/plc-devices"
+@page "/shared-users"
+@page "/location"
+@inherits FBoxPage
+
+<IonPage>
+    <PageHeader Title="@Title" BackHref="/information"><Actions>@if (Path == "/shared-users") { <IonButton Href="/share">分享</IonButton> }</Actions></PageHeader>
+    <IonContent>
+        <PageStatus />
+        @if (Store.Selected is { } box)
+        {
+            @if (Path == "/basic-information") { <IonList><SettingRow Label="产品序列号" Value="@box.Number" /><SettingRow Label="设备名称" Value="@box.Title" /><SettingRow Label="联网方式" Value="@box.Network" /><SettingRow Label="状态" Value="@(box.Online ? "在线" : "离线")" /><SettingRow Label="分组" Value="@Store.GroupOf(box)?.Name" /></IonList> }
+            else if (Path == "/location")
+            {
+                <IonList><IonItem><IonInput Class="device-address" Label="设备地址" @bind-Value="_address" /></IonItem></IonList><IonButton Class="submit" Expand="block" OnClick="SaveAddress">保存</IonButton><p class="hint">填写安装地址，便于维护人员定位设备。</p>
+            }
+            else if (Path == "/system-settings")
+            {
+                <IonList><SettingRow Label="固件版本" Value="@_data.Text("version", Store.Demo ? "演示设备" : "未知")" /><SettingRow Label="IP 地址" Value="@_data.Text("ipAddress", "—")" /><SettingRow Label="子网掩码" Value="@_data.Text("subnetMask", "—")" /><SettingRow Label="网关" Value="@_data.Text("gateway", "—")" /><SettingRow Label="DNS" Value="@_data.Text("primaryDns", "—")" /></IonList>
+                <p class="hint">系统参数由设备返回。离线时以服务端保存的信息为准。</p>
+            }
+            else
+            {
+                <IonList>@foreach (var item in _items) { <SettingRow Label="@(Path == "/plc-devices" ? item.Text("alias", item.Text("plcName")) : item.Text("userName"))" Value="@(Path == "/plc-devices" ? item.Text("ip") : item.Text("remarks"))" /> }</IonList>
+                @if (_items.Count == 0 && !Store.Busy) { <EmptyState Icon="@(Path == "/plc-devices" ? "hardware-chip-outline" : "people-outline")" Text="@(Path == "/plc-devices" ? "暂无连接设备" : "暂无共享用户")" /> }
+            }
+        }
+        else { <EmptyState Text="请先选择设备" /> }
+    </IonContent>
+</IonPage>
+@code {
+    private string Path => NavigationManager?.CurrentPath ?? "";
+    private string Title => Path switch { "/system-settings" => "系统设置", "/plc-devices" => "连接设备", "/shared-users" => "分享信息", "/location" => "设备地址", _ => "基本信息" };
+    private JsonNode? _data;
+    private List<JsonNode> _items = [];
+    private string? _address;
+    protected override async Task OnInitializedAsync()
+    {
+        _address = Store.Selected?.Address;
+        if (Store.Selected is not { } box || Store.Demo) return;
+        await Run(async () =>
+        {
+            if (Path == "/system-settings")
+            {
+                var settings = await Store.Client.PostAsync($"/api/v2/get/box/{box.Id}/boxSettings", new[] { 5, 4, 7, 8, 9, 10, 11 });
+                _data = new JsonObject();
+                foreach (var setting in settings.Items())
+                {
+                    var key = setting.Number("type") switch { 5 => "version", 4 => "ipAddress", 8 => "subnetMask", 9 => "gateway", 10 => "primaryDns", 11 => "secondaryDns", _ => "other" };
+                    _data[key] = setting.Text("value");
+                }
+            }
+            else if (Path == "/plc-devices") _items = (await Store.Client.GetAsync($"/api/v2/box/{box.Id}/plcdevice?getshutdown=false")).Items().ToList();
+            else if (Path == "/shared-users") _items = (await Store.Client.GetAsync($"/api/client/v2/box/{box.Id}/shared/users")).Items().ToList();
+        });
+    }
+    private async Task SaveAddress()
+    {
+        if (Store.Selected is not { } box) return;
+        await Run(async () => { if (!Store.Demo) await Store.Client.PostAsync("/api/client/box/location", new { boxId = box.Id, address = _address }); box.Address = _address ?? ""; if (Store.Demo) Store.Save(); }, "地址已保存");
+    }
+}

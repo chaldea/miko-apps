@@ -1,0 +1,6 @@
+<div class="empty-state"><IonIcon Icon="@Icon" /><p>@Text</p>@ChildContent</div>
+@code {
+    [Parameter] public string Icon { get; set; } = "file-tray-outline";
+    [Parameter] public string Text { get; set; } = "暂无数据";
+    [Parameter] public new RenderFragment? ChildContent { get; set; }
+}

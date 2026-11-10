@@ -1,0 +1,33 @@
+@page "/share"
+@inherits FBoxPage
+@using Miko.Native.Clipboard
+@inject IClipboardService Clipboard
+
+<IonPage>
+    <PageHeader Title="分享" />
+    <IonContent>
+        <PageStatus />
+        <div class="share-options"><IonButton Fill="clear" OnClick="@(() => Go("/shared-users"))"><Start><IonIcon Icon="person-circle-outline" /></Start><ChildContent>平台用户</ChildContent></IonButton><IonButton Fill="clear" OnClick="Copy"><Start><IonIcon Icon="copy-outline" /></Start><ChildContent>复制</ChildContent></IonButton><IonButton Class="generate-code" Fill="clear" OnClick="Generate"><Start><IonIcon Icon="keypad-outline" /></Start><ChildContent>分享码</ChildContent></IonButton></div>
+        <IonList>
+            <IonItem><IonToggle @bind-Checked="_write" Justify="space-between">写值</IonToggle></IonItem>
+            <IonItem><IonToggle @bind-Checked="_edit" Justify="space-between">编辑</IonToggle></IonItem>
+            <IonItem><IonSelect Label="有效期" @bind-Value="_validity" OkText="确定" CancelText="取消"><IonSelectOption Value="permanent">永久有效</IonSelectOption><IonSelectOption Value="day">1 天</IonSelectOption><IonSelectOption Value="week">7 天</IonSelectOption></IonSelect></IonItem>
+        </IonList>
+        @if (_code is not null) { <div class="share-code">@_code</div><p class="hint">@(Store.Demo ? "演示分享码仅用于本地体验。" : "请将分享码交给需要访问设备的用户。")</p> }
+    </IonContent>
+</IonPage>
+
+@code {
+    private bool _write, _edit;
+    private string? _validity = "permanent", _code;
+    private async Task Generate()
+    {
+        if (Store.Selected is not { } box) return;
+        await Run(async () =>
+        {
+            _code = Store.Demo ? "DEMO-" + box.Number[^6..] : (await Store.Client.PostAsync("/api/client/v2/box/share/code/generate", new { boxId = box.Id, options = new { variable = true, alarm = true, history = true, script = false, transfer = false, remote_device = true, remote_operate = false, role_permission = new { write = _write, edit = _edit }, validity_type = _validity == "permanent" ? 0 : 1, relative_day = _validity == "week" ? 7 : 1 } })).Text("code");
+            if (string.IsNullOrWhiteSpace(_code)) throw new InvalidOperationException("服务没有返回分享码。");
+        });
+    }
+    private async Task Copy() { if (_code is null) await Generate(); if (!string.IsNullOrWhiteSpace(_code)) await Run(() => Clipboard.WriteAsync(new() { String = _code }), "分享码已复制"); }
+}

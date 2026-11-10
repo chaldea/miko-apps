@@ -1,0 +1,71 @@
+@page "/"
+@page "/devices"
+@inherits FBoxPage
+
+<IonPage>
+    <IonHeader>
+        <IonToolbar Class="search-toolbar"><IonSearchbar Class="device-search" Placeholder="别名/序列号" @bind-Value="_query" /></IonToolbar>
+        <IonSegment Class="device-filters" Value="@_filter" ValueChanged="FilterChanged">
+            <IonSegmentButton Value="all"><IonIcon Icon="list-outline" /></IonSegmentButton>
+            <IonSegmentButton Value="favorites"><IonIcon Icon="star-outline" /></IonSegmentButton>
+            <IonSegmentButton Value="alarms"><div class="row"><IonIcon Icon="warning-outline" /><IonBadge Color="danger">@Store.Boxes.Sum(b => b.AlarmCount)</IonBadge></div></IonSegmentButton>
+        </IonSegment>
+    </IonHeader>
+    <IonContent>
+        <PageStatus />
+        <div class="tools"><span class="demo-label">@(Store.Demo ? "演示数据" : Store.Realtime.Status)</span><IonButton Fill="clear" OnClick="Refresh">刷新</IonButton><IonButton Fill="clear" OnClick="() => _descending = !_descending">排序</IonButton><IonButton Class="select-devices" Fill="clear" OnClick="() => _selecting = !_selecting">@(_selecting ? "完成" : "选择")</IonButton></div>
+        @if (!Store.Authenticated)
+        {
+            <EmptyState Icon="lock-closed-outline" Text="登录后查看设备"><IonButton Href="/login">登录</IonButton></EmptyState>
+        }
+        else if (_filter == "all" && string.IsNullOrWhiteSpace(_query))
+        {
+            @foreach (var group in Store.Groups)
+            {
+                <div @key="group.Id">
+                    <button class="group-heading" @onclick="() => Toggle(group.Id)"><IonIcon Icon="@(_expanded.Contains(group.Id) ? "caret-down" : "caret-forward")" /><span class="grow">@group.Name</span><span>(@group.Boxes.Count(b => b.Online)/@group.Boxes.Count)</span></button>
+                    @if (_expanded.Contains(group.Id)) { <DeviceList Boxes="@Sorted(group.Boxes)" Selecting="@_selecting" OnOpen="Open" OnAction="Action" /> }
+                </div>
+            }
+        }
+        else
+        {
+            <DeviceList Boxes="@Filtered" Selecting="@_selecting" OnOpen="Open" OnAction="Action" />
+            @if (!Filtered.Any()) { <EmptyState Text="没有符合条件的设备" /> }
+        }
+        @if (Store.Authenticated && Store.Groups.Count == 0 && !Store.Busy) { <EmptyState Text="还没有设备"><IonButton Href="/box-add">添加设备</IonButton></EmptyState> }
+    </IonContent>
+    <IonActionSheet @bind-IsOpen="_actions" Header="@_actionBox?.Title" Buttons="@_buttons" OnDidDismiss="ActionDismissed" />
+    <IonAlert @bind-IsOpen="_delete" Header="删除设备" Message="确认删除该设备吗？" Buttons="@_deleteButtons" OnDidDismiss="DeleteDismissed" />
+</IonPage>
+
+@code {
+    private string? _query;
+    private string? _filter = "all";
+    private readonly HashSet<long> _expanded = [1];
+    private bool _descending, _selecting, _actions, _delete;
+    private Box? _actionBox;
+    private readonly IonActionSheetButton[] _buttons = [new() { Text = "编辑", Data = "edit" }, new() { Text = "分享", Data = "share" }, new() { Text = "收藏 / 取消收藏", Data = "favorite" }, new() { Text = "删除", Role = "destructive", Data = "delete" }, new() { Text = "取消", Role = "cancel" }];
+    private readonly IonAlertButton[] _deleteButtons = [new() { Text = "取消", Role = "cancel" }, new() { Text = "确定", Role = "destructive" }];
+    private IEnumerable<Box> Sorted(IEnumerable<Box> boxes) => _descending ? boxes.OrderByDescending(b => b.Title) : boxes;
+    private IEnumerable<Box> Filtered => Sorted(Store.Boxes.Where(b => (_filter != "favorites" || b.Favorite) && (_filter != "alarms" || b.AlarmCount > 0) && (string.IsNullOrWhiteSpace(_query) || (b.Title + b.Number).Contains(_query, StringComparison.OrdinalIgnoreCase))));
+    protected override async Task OnInitializedAsync() { await Run(Store.InitializeAsync); }
+    private void FilterChanged(string? value) { _filter = value; StateHasChanged(); }
+    private void Toggle(long id) { if (!_expanded.Add(id)) _expanded.Remove(id); }
+    private async Task Refresh() { await Run(Store.RefreshAsync); }
+    private void Open(Box box) { Store.Selected = box; Go("/monitor"); }
+    private void Action(Box box) { _actionBox = box; _actions = true; StateHasChanged(); }
+    private async Task ActionDismissed(IonOverlayDismissEventArgs e)
+    {
+        if (_actionBox is null) return;
+        Store.Selected = _actionBox;
+        switch (e.Data as string)
+        {
+            case "edit": Go("/box-edit"); break;
+            case "share": Go("/share"); break;
+            case "favorite": await Run(() => Store.FavoriteAsync(_actionBox)); break;
+            case "delete": _delete = true; StateHasChanged(); break;
+        }
+    }
+    private async Task DeleteDismissed(IonOverlayDismissEventArgs e) { if (e.Role == "destructive" && _actionBox is not null) await Run(() => Store.DeleteAsync(_actionBox), "设备已删除"); }
+}
