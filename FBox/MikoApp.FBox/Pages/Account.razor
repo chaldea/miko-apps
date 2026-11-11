@@ -10,10 +10,10 @@
             <SettingRow Icon="person-outline" Label="账号管理" Href="/account-management" />
             <SettingRow Icon="settings-outline" Label="全局设置" Href="/settings" />
             <SettingRow Icon="folder-outline" Label="设备分组" Href="/groups" />
-            <SettingRow Icon="server-outline" Label="服务配置" Href="/server-settings" />
-            <IonItem Button="true" Detail="true" OnClick="Logout"><Start><IonIcon Icon="log-out-outline" Color="primary" /></Start><ChildContent><IonLabel>@(Store.Demo ? "登录真实服务" : "退出登录")</IonLabel></ChildContent></IonItem>
+            <SettingRow Icon="settings-outline" Label="系统设置" Href="/server-settings" />
+            <IonItem Button="true" Detail="true" OnClick="Logout"><Start><IonIcon Icon="log-out-outline" Color="primary" /></Start><ChildContent><IonLabel>退出登录</IonLabel></ChildContent></IonItem>
         </IonList>
         <p class="hint">FBox for Miko · 1.0.0</p>
     </IonContent>
 </IonPage>
-@code { private async Task Logout() { await Store.LogoutAsync(); Go("/login"); } }
+@code { private async Task Logout() { await Store.LogoutAsync(); GoRoot("/login"); } }

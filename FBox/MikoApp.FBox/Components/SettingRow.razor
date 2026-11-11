@@ -1,4 +1,4 @@
-<IonItem Button="@(!string.IsNullOrEmpty(Href))" Detail="@(!string.IsNullOrEmpty(Href))" OnClick="Navigate">
+<IonItem Button="@(!string.IsNullOrEmpty(Href))" Detail="@(!string.IsNullOrEmpty(Href))" Href="@Href">
     <Start>@if (!string.IsNullOrEmpty(Icon)) { <IonIcon Icon="@Icon" Color="primary" /> }</Start>
     <ChildContent><IonLabel>@Label</IonLabel></ChildContent>
     <End><IonNote>@Value</IonNote></End>
@@ -8,5 +8,4 @@
     [Parameter] public string? Value { get; set; }
     [Parameter] public string? Icon { get; set; }
     [Parameter] public string? Href { get; set; }
-    private void Navigate() { if (!string.IsNullOrEmpty(Href)) NavigationManager?.NavigateTo(Href); }
 }

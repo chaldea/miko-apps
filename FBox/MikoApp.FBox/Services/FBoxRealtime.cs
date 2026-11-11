@@ -20,6 +20,7 @@ public sealed class FBoxRealtime(FBoxClient client, FBoxOptions options) : IAsyn
     public async Task StartAsync(CancellationToken ct = default)
     {
         await StopAsync();
+        if (options.Demo || !client.Authenticated) return;
         if (options.SignalRVersion == "legacy")
         {
             _legacy = new Legacy.HubConnection(client.Endpoint("/push/signalr").ToString(), new Dictionary<string, string> { ["at"] = client.AccessToken ?? "", ["cid"] = client.DeviceClientId }, false);

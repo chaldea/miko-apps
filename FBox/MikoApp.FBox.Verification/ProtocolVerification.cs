@@ -10,7 +10,7 @@ internal static class ProtocolVerification
 {
     public static async Task RunAsync()
     {
-        var options = new FBoxOptions { ApiUrl = "https://api.fbox.invalid", IdentityUrl = "https://id.fbox.invalid", ClientId = "test", Demo = false, DataDirectory = Path.Combine(Path.GetTempPath(), "fbox-verification-" + Guid.NewGuid().ToString("N")) };
+        var options = new FBoxOptions(Path.Combine(Path.GetTempPath(), "fbox-verification-" + Guid.NewGuid().ToString("N"))) { ApiUrl = "https://api.fbox.invalid", IdentityUrl = "https://id.fbox.invalid", ClientId = "test", Demo = false };
         using var handler = new Fixture();
         using var client = new FBoxClient(options, handler);
         using var realtime = new FBoxRealtime(client, options);
@@ -51,9 +51,11 @@ internal static class ProtocolVerification
         var before = handler.RetryCount;
         try { await client.GetAsync("/retry"); throw new Exception("Repeated 401 accepted"); } catch (InvalidOperationException) { }
         AppHarness.Require(handler.RetryCount - before == 2 && !client.Authenticated, "Repeated 401 bounded retry and logout");
+        await store.ConfigureAsync(true, null, null, null, null, null);
         await store.EnterDemoAsync();
         var demo = store.Boxes.First(); await store.FavoriteAsync(demo);
         var persisted = new FBoxStore(options, client, realtime);
+        await persisted.EnterDemoAsync();
         AppHarness.Require(persisted.Boxes.First().Favorite == demo.Favorite, "Demo persistence");
         demo.State = 1; demo.Points.Add(new() { Id = 500, Name = "Target", Writable = true });
         var group = new WriteGroup { Targets = [new() { BoxNumber = demo.Number, PointId = 500 }] };

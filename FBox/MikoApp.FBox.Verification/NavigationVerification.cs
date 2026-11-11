@@ -13,6 +13,8 @@ internal static class NavigationVerification
         using var app = new AppHarness(output, ios);
         var navigation = app.Service<NavigationManager>();
         var store = app.Service<FBoxStore>();
+        app.Pump();
+        app.ClickClass("enter-demo");
 
         void Root(string route = "/devices")
         {
@@ -41,7 +43,7 @@ internal static class NavigationVerification
         // Every route that shares PageHeader must be able to pop its history.
         store.Selected = store.Boxes.Single(b => b.Number == "100017120001");
         store.SelectedPoint = store.Selected.Points.First();
-        string[] routes = ["box-add", "box-edit", "group-add", "share-add", "share", "monitor", "point", "point-add", "alarm-add", "alarms", "history", "remote", "information", "account-management", "settings", "groups", "notifications", "security", "server-settings", "username", "password", "feedback", "cloud-settings", "cancel-account", "basic-information", "system-settings", "plc-devices", "shared-users", "location", "login", "register", "forgot-password", "privacy", "agreement", "vnc-connect", "scan", "unified-writing"];
+        string[] routes = ["box-add", "box-edit", "group-add", "share-add", "share", "monitor", "point", "point-add", "alarm-add", "alarms", "history", "remote", "information", "account-management", "settings", "groups", "notifications", "security", "server-settings", "username", "password", "feedback", "cloud-settings", "cancel-account", "basic-information", "system-settings", "plc-devices", "shared-users", "location", "register", "forgot-password", "privacy", "agreement", "vnc-connect", "scan", "unified-writing"];
         foreach (var route in routes)
         {
             Root(); app.Navigate("/" + route); app.ClickClass("back-button");

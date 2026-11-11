@@ -2,12 +2,14 @@ using MikoApp.FBox.Verification;
 using MikoApp.FBox.Services;
 
 if (args.Contains("--protocol")) { await ProtocolVerification.RunAsync(); return; }
+if (args.Contains("--mode")) { ModeVerification.Run(args.Contains("--ios")); return; }
 if (args.Contains("--navigation")) { NavigationVerification.Run(args.Contains("--ios")); return; }
 var output = Path.GetFullPath(args.FirstOrDefault(a => !a.StartsWith("--")) ?? "FBox/artifacts/verification");
 Environment.SetEnvironmentVariable("FBOX_DEMO", "1");
 Environment.SetEnvironmentVariable("FBOX_DATA_DIR", Path.Combine(output, "state-" + Guid.NewGuid().ToString("N")));
 using var app = new AppHarness(output, ios: args.Contains("--ios"));
 app.Pump();
+app.ClickClass("enter-demo");
 app.Capture("01-devices");
 app.Click(app.Find("ion-segment-button")[1]); app.Capture("50-favorites");
 app.Click(app.Find("ion-segment-button")[2]); app.Capture("51-alarm-devices");

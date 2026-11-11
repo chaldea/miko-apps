@@ -16,6 +16,7 @@
             <IonButton Expand="block" Href="/box-add">手动输入序列号</IonButton>
             @if (_scanResult is not null) { <p class="hint">识别结果：@_scanResult</p> }
         }
+        else if (Store.Demo) { <EmptyState Icon="desktop-outline" Text="演示模式不连接远程设备" /><p class="hint">连接真实服务并登录后，可使用远程监控。</p> }
         else if (NavigationManager?.CurrentPath == "/vnc-connect") { <MikoVnc Texts="@VncTexts.Chinese" AutoConnect="false" Style="@_vncStyle" /> }
         else if (_target is not null) { <p class="hint">局域网直连 · @_target.Text("alias")</p><MikoVnc @key="_target" Host="@_target.Text("ip")" Port="@((int)(_target.Number("port") > 0 ? _target.Number("port") : 5900))" Texts="@VncTexts.Chinese" AutoConnect="false" Style="@_vncStyle" /> }
         else

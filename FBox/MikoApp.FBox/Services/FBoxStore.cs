@@ -22,12 +22,13 @@ public sealed class FBoxStore
     public string? Error { get; set; }
     public string? Notice { get; set; }
     public bool Busy { get; private set; }
-    public bool Demo => Options.Demo;
-    public bool Authenticated => Demo || Client.Authenticated;
+    public bool Demo { get; private set; }
+    public bool Authenticated => Demo || (_signedIn && Client.Authenticated);
     public string Username { get; set; } = "";
     public IEnumerable<Box> Boxes => Groups.SelectMany(g => g.Boxes);
     public event Action? Changed;
     private bool _initialized;
+    private bool _signedIn;
     private SynchronizationContext? _context;
 
     public FBoxStore(FBoxOptions options, FBoxClient client, FBoxRealtime realtime)
@@ -47,7 +48,6 @@ public sealed class FBoxStore
         }
         catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException) { Error = "本地演示数据读取失败，已载入初始数据。"; }
         if (State.Groups.Count == 0) State.Groups = DemoGroups();
-        if (Demo) { Groups = State.Groups; Username = State.Username; }
     }
 
     public void Save()
@@ -69,7 +69,18 @@ public sealed class FBoxStore
             Error = e is HttpRequestException ? "网络连接失败，请检查服务地址并重试。" : e is TaskCanceledException ? "请求超时，请重试。" : e.Message;
             return false;
         }
-        finally { Busy = false; Changed?.Invoke(); }
+        finally
+        {
+            try
+            {
+                if (_signedIn && !Client.Authenticated)
+                {
+                    ResetSession();
+                    await Realtime.StopAsync();
+                }
+            }
+            finally { Busy = false; Changed?.Invoke(); }
+        }
     }
 
     public async Task InitializeAsync()
@@ -101,26 +112,81 @@ public sealed class FBoxStore
     public async Task LoginAsync(string username, string password)
     {
         _context ??= SynchronizationContext.Current;
-        await Client.LoginAsync(username, password);
-        Options.Demo = false;
-        Groups = []; Selected = null; Samples = [];
-        Username = username;
-        await RefreshAsync();
-        await Realtime.StartAsync();
+        if (Options.Demo) throw new InvalidOperationException("请先在系统设置中关闭演示模式并配置服务器。");
+        ResetSession();
+        try
+        {
+            await Client.LoginAsync(username, password);
+            await RefreshAsync();
+            await Realtime.StartAsync();
+            Username = username;
+            _signedIn = true;
+            Changed?.Invoke();
+        }
+        catch
+        {
+            await Realtime.StopAsync();
+            Client.Logout();
+            ResetSession();
+            throw;
+        }
     }
 
     public async Task EnterDemoAsync()
     {
-        await Realtime.StopAsync(); Client.Logout(); Options.Demo = true;
-        Groups = State.Groups; Username = State.Username; Selected = null; Samples = [];
+        if (!Options.Demo) throw new InvalidOperationException("请先在系统设置中启用演示模式。");
+        await Realtime.StopAsync(); Client.Logout(); ResetSession(); Demo = true;
+        Groups = State.Groups; Username = State.Username;
         Error = null; Notice = null; Changed?.Invoke();
     }
 
     public async Task LogoutAsync()
     {
-        await Realtime.StopAsync(); Client.Logout(); Options.Demo = false;
-        Groups = []; Selected = null; SelectedPoint = null; Samples = []; Username = "";
+        await Realtime.StopAsync(); Client.Logout(); ResetSession();
         Error = null; Notice = null; Changed?.Invoke();
+    }
+
+    public async Task ConfigureAsync(bool demo, string? apiUrl, string? identityUrl, string? clientId, string? clientSecret, string? signalRVersion)
+    {
+        if (!demo)
+        {
+            foreach (var url in new[] { apiUrl, identityUrl })
+                if (!Uri.TryCreate(url?.Trim(), UriKind.Absolute, out var parsed) || parsed.Scheme != "https" || string.IsNullOrWhiteSpace(parsed.Host) || !string.IsNullOrEmpty(parsed.UserInfo) || !string.IsNullOrEmpty(parsed.Query) || !string.IsNullOrEmpty(parsed.Fragment))
+                    throw new InvalidOperationException("请填写有效的 HTTPS 服务地址。");
+            if (string.IsNullOrWhiteSpace(clientId)) throw new InvalidOperationException("请输入客户端 ID。");
+            if (signalRVersion is not ("core" or "legacy")) throw new InvalidOperationException("请选择实时协议。");
+        }
+        var previous = (Options.Demo, Options.ApiUrl, Options.IdentityUrl, Options.ClientId, Options.ClientSecret, Options.SignalRVersion);
+        try
+        {
+            Options.Demo = demo;
+            if (!demo)
+            {
+                Options.ApiUrl = apiUrl!.Trim().TrimEnd('/');
+                Options.IdentityUrl = identityUrl!.Trim().TrimEnd('/');
+                Options.ClientId = clientId!.Trim();
+                Options.ClientSecret = clientSecret ?? "";
+                Options.SignalRVersion = signalRVersion!;
+            }
+            Options.Save();
+        }
+        catch
+        {
+            (Options.Demo, Options.ApiUrl, Options.IdentityUrl, Options.ClientId, Options.ClientSecret, Options.SignalRVersion) = previous;
+            throw;
+        }
+        await Realtime.StopAsync();
+        Client.Logout();
+        ResetSession();
+        Error = null; Notice = null; Changed?.Invoke();
+    }
+
+    private void ResetSession()
+    {
+        Demo = false; _signedIn = false; Username = "";
+        Groups = []; Selected = null; SelectedPoint = null; Samples = [];
+        HistoryId = 0; HistoryChannelId = 0; HistoryChannels = []; HistoryName = "温度采样";
+        ScannedNumber = null;
     }
 
     public BoxGroup? GroupOf(Box box) => Groups.FirstOrDefault(g => g.Boxes.Contains(box));

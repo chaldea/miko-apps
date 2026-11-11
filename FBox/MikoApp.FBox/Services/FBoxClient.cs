@@ -26,6 +26,7 @@ public sealed class FBoxClient : IDisposable
 
     public async Task LoginAsync(string username, string password, CancellationToken ct = default)
     {
+        RequireOnline();
         if (string.IsNullOrWhiteSpace(_options.ClientId)) throw new InvalidOperationException("请先设置服务地址和客户端 ID。");
         await TokenAsync(new() { ["username"] = username, ["password"] = password, ["grant_type"] = "password" }, ct);
     }
@@ -50,6 +51,9 @@ public sealed class FBoxClient : IDisposable
 
     public async Task<JsonNode?> SendAsync(HttpMethod method, string path, object? body, bool identity = false, CancellationToken ct = default)
     {
+        RequireOnline();
+        if (!Authenticated && !(identity && (path is "/api/account/forgotpwdByEmail" or "/api/reg/email/confirm")))
+            throw new InvalidOperationException("请先登录。");
         for (var attempt = 0; attempt < 2; attempt++)
         {
             var usedToken = AccessToken;
@@ -86,7 +90,7 @@ public sealed class FBoxClient : IDisposable
     {
         var value = identity ? _options.IdentityUrl : _options.ApiUrl;
         if (!Uri.TryCreate(value.TrimEnd('/') + "/", UriKind.Absolute, out var root) || root.Scheme != "https")
-            throw new InvalidOperationException("请在服务配置中填写有效的 HTTPS 地址。");
+            throw new InvalidOperationException("请在系统设置中填写有效的 HTTPS 地址。");
         return new Uri(root, path.TrimStart('/'));
     }
 
@@ -101,5 +105,9 @@ public sealed class FBoxClient : IDisposable
     });
 
     public void Logout() { AccessToken = null; _refreshToken = null; }
+    private void RequireOnline()
+    {
+        if (_options.Demo) throw new InvalidOperationException("演示模式仅使用本地数据，请在系统设置中配置真实服务后再操作。");
+    }
     public void Dispose() { _http.Dispose(); _refresh.Dispose(); }
 }

@@ -14,6 +14,7 @@ public abstract class FBoxPage : ComponentBase, IDisposable
         else StateHasChanged();
     }
     protected void Go(string route) => NavigationManager?.NavigateTo(route);
+    protected void GoRoot(string route) => NavigationManager?.NavigateTo(route, Miko.Routing.NavigationDirection.Root);
     protected Task<bool> Run(Func<Task> action, string? message = null) => Data.RunAsync(action, message);
     public virtual void Dispose() { Data.Changed -= Redraw; }
     protected override void OnDispose() => Dispose();

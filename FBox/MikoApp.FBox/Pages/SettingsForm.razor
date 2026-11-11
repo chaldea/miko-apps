@@ -7,18 +7,29 @@
 @inherits FBoxPage
 
 <IonPage>
-    <PageHeader Title="@Title" BackHref="/settings" />
+    <PageHeader Title="@Title" BackHref="@BackHref" />
     <IonContent>
         <PageStatus />
         @if (Path == "/server-settings")
         {
             <IonList>
-                <IonItem><IonInput Class="server-api" Label="API 地址" LabelPlacement="stacked" Placeholder="https://api.example.com" @bind-Value="_api" /></IonItem>
-                <IonItem><IonInput Label="身份服务地址" LabelPlacement="stacked" Placeholder="https://identity.example.com" @bind-Value="_identity" /></IonItem>
-                <IonItem><IonInput Label="客户端 ID" LabelPlacement="stacked" @bind-Value="_clientId" /></IonItem>
-                <IonItem><IonInput Label="客户端密钥（可选）" LabelPlacement="stacked" Type="password" @bind-Value="_secret" /></IonItem>
-                <IonItem><IonSelect Label="实时协议" @bind-Value="_protocol" OkText="确定" CancelText="取消"><IonSelectOption Value="core">SignalR Core</IonSelectOption><IonSelectOption Value="legacy">SignalR Legacy</IonSelectOption></IonSelect></IonItem>
-            </IonList><p class="hint">配置仅用于当前会话，也可通过 FBOX_API_URL、FBOX_IDENTITY_URL 和 FBOX_CLIENT_ID 设置启动配置。修改服务后需重新登录。</p>
+                <IonItem><IonToggle Class="demo-mode" Checked="_demo" CheckedChanged="DemoChanged" Disabled="@Store.Busy" Justify="space-between">演示模式</IonToggle></IonItem>
+            </IonList>
+            @if (_demo)
+            {
+                <p class="hint">演示模式仅使用本机保存的离线数据。返回登录页后点击“体验演示”进入应用。</p>
+            }
+            else
+            {
+                <IonList>
+                    <IonItem><IonInput Class="server-api" Label="API 地址" LabelPlacement="stacked" Placeholder="https://api.example.com" @bind-Value="_api" /></IonItem>
+                    <IonItem><IonInput Class="server-identity" Label="身份服务地址" LabelPlacement="stacked" Placeholder="https://identity.example.com" @bind-Value="_identity" /></IonItem>
+                    <IonItem><IonInput Class="server-client-id" Label="客户端 ID" LabelPlacement="stacked" @bind-Value="_clientId" /></IonItem>
+                    <IonItem><IonInput Class="server-client-secret" Label="客户端密钥（可选）" LabelPlacement="stacked" Type="password" @bind-Value="_secret" /></IonItem>
+                    <IonItem><IonSelect Label="实时协议" @bind-Value="_protocol" OkText="确定" CancelText="取消"><IonSelectOption Value="core">SignalR Core</IonSelectOption><IonSelectOption Value="legacy">SignalR Legacy</IonSelectOption></IonSelect></IonItem>
+                </IonList>
+                <p class="hint">保存后进入登录页面。客户端密钥仅在本次运行期间有效，重启后如有需要请重新填写。</p>
+            }
         }
         else if (Path == "/username") { <IonList><IonItem><IonInput Class="new-username" Label="用户名" @bind-Value="_name" Maxlength="40" /></IonItem></IonList> }
         else if (Path == "/password")
@@ -34,27 +45,27 @@
 
 @code {
     private string Path => NavigationManager?.CurrentPath ?? "";
-    private string Title => Path switch { "/server-settings" => "服务配置", "/username" => "修改用户名", "/password" => "修改密码", "/feedback" => "问题反馈", "/cloud-settings" => "萤石云账号设置", _ => "注销账户" };
+    private string Title => Path switch { "/server-settings" => "系统设置", "/username" => "修改用户名", "/password" => "修改密码", "/feedback" => "问题反馈", "/cloud-settings" => "萤石云账号设置", _ => "注销账户" };
+    private string BackHref => Path == "/server-settings" ? (Store.Authenticated ? "/account" : "/login") : "/settings";
     private string? _api, _identity, _clientId, _secret, _name, _old, _password, _confirm, _message, _protocol;
-    private bool _agree;
+    private bool _agree, _demo;
+    private void DemoChanged(bool value) { _demo = value; StateHasChanged(); }
     protected override void OnInitialized()
     {
         base.OnInitialized(); Store.Error = null; Store.Notice = null;
         _api = Store.Options.ApiUrl; _identity = Store.Options.IdentityUrl; _clientId = Store.Options.ClientId; _protocol = Store.Options.SignalRVersion;
+        _secret = Store.Options.ClientSecret; _demo = Store.Options.Demo;
         if (Path == "/username") _name = Store.Username;
     }
     private async Task Submit()
     {
-        await Run(async () =>
+        var saved = await Run(async () =>
         {
             switch (Path)
             {
                 case "/server-settings":
-                    foreach (var url in new[] { _api, _identity }) if (!Uri.TryCreate(url, UriKind.Absolute, out var parsed) || parsed.Scheme != "https") throw new InvalidOperationException("请填写有效的 HTTPS 服务地址。");
-                    if (string.IsNullOrWhiteSpace(_clientId)) throw new InvalidOperationException("请输入客户端 ID。");
-                    await Store.LogoutAsync();
-                    Store.Options.ApiUrl = _api!; Store.Options.IdentityUrl = _identity!; Store.Options.ClientId = _clientId!; Store.Options.ClientSecret = _secret ?? ""; Store.Options.SignalRVersion = _protocol ?? "core";
-                    Go("/login"); break;
+                    await Store.ConfigureAsync(_demo, _api, _identity, _clientId, _secret, _protocol);
+                    break;
                 case "/username":
                     if (string.IsNullOrWhiteSpace(_name)) throw new InvalidOperationException("用户名不能为空。");
                     if (!Store.Demo) await Store.Client.PostAsync("/api/account/changeusername", new { userName = _name.Trim() }, true);
@@ -76,5 +87,6 @@
                     await Store.Client.PostAsync("/api/account/requestCancelAccount", new { password = _password }, true); break;
             }
         }, Path == "/feedback" ? "反馈已保存到本机" : "保存成功");
+        if (saved && Path == "/server-settings") GoRoot("/login");
     }
 }

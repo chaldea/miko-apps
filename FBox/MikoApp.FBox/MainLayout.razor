@@ -1,11 +1,15 @@
 @inherits LayoutComponentBase
 @namespace MikoApp.FBox
+@using Miko.Routing
 
 <IonApp Class="fbox-app">
     <IonTabs>
-        <Content>@Body</Content>
+        <Content>
+            @if (_canRenderPage) { @Body }
+            else { <IonPage><IonContent /></IonPage> }
+        </Content>
         <Bottom>
-            @if (IsMain)
+            @if (Store.Authenticated && IsMain)
             {
                 <IonTabBar>
                     <IonTabButton Href="/devices" Selected="@(Path is "/" or "/devices")"><IonIcon Icon="list-outline" /><IonLabel>设备列表</IonLabel></IonTabButton>
@@ -14,7 +18,7 @@
                     <IonTabButton Href="/account" Selected="@(Path == "/account")"><IonIcon Icon="person-outline" /><IonLabel>我的</IonLabel></IonTabButton>
                 </IonTabBar>
             }
-            @if (IsBox)
+            @if (Store.Authenticated && IsBox)
             {
                 <IonTabBar>
                     <IonTabButton OnClick="@(() => GoBox("/monitor"))" Selected="@(Path == "/monitor")"><IonIcon Icon="pulse-outline" /><IonLabel>数据监控</IonLabel></IonTabButton>
@@ -34,7 +38,29 @@
     private bool IsMain => Path is "/" or "/devices" or "/messages" or "/account";
     private bool IsBox => Path is "/monitor" or "/alarms" or "/history" or "/remote" or "/information";
     private bool _add;
+    private bool _canRenderPage;
+    private SynchronizationContext? _context;
     private readonly IonActionSheetButton[] _addButtons = [new() { Text = "扫码添加", Data = "/scan" }, new() { Text = "序列号密码添加", Data = "/box-add" }, new() { Text = "分享码添加", Data = "/share-add" }, new() { Text = "取消", Role = "cancel" }];
+    protected override void OnParametersSet() => CheckAccess();
+    private void CheckAccess()
+    {
+        _canRenderPage = Store.Authenticated || Path is "/login" or "/register" or "/forgot-password" or "/server-settings" or "/privacy" or "/agreement";
+        if (!Store.Authenticated) _add = false;
+        if (!_canRenderPage)
+            NavigationManager?.NavigateTo("/login", NavigationDirection.Root);
+    }
+    protected override void OnInitialized()
+    {
+        _context = SynchronizationContext.Current;
+        Store.Changed += RefreshAccess;
+    }
+    private void RefreshAccess()
+    {
+        void Refresh() { CheckAccess(); StateHasChanged(); }
+        if (_context is not null && SynchronizationContext.Current != _context) _context.Post(_ => Refresh(), null);
+        else Refresh();
+    }
+    protected override void OnDispose() => Store.Changed -= RefreshAccess;
     private void OpenAdd() { _add = true; StateHasChanged(); }
     private void GoBox(string path) => NavigationManager?.NavigateTo(path);
     private void AddDismissed(IonOverlayDismissEventArgs e) { if (e.Data is string path) NavigationManager?.NavigateTo(path); }

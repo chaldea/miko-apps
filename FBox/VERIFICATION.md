@@ -1,5 +1,23 @@
 # FBox 验证记录
 
+## 新增功能第 1 项：演示模式切换与登录入口
+
+“我的”中的“登录真实服务”入口已统一为“系统设置”，登录页右上角也可打开同一设置页面。演示开关即时显示/隐藏服务配置；保存前检查 HTTPS 地址、客户端 ID 和实时协议，保存后清理会话与导航历史并返回登录页。首次默认启用演示，用户点击“体验演示”后加载本地数据；真实模式只有登录成功后才能进入受保护页面。
+
+模式和非敏感配置使用独立的 `app-settings.json` 持久化，演示设备继续使用 `demo-state.json`，不会被真实服务数据覆盖。客户端密钥和令牌不写入普通配置文件。登录过期后重新检查页面访问权限、清空设备及历史缓存并停止实时连接。演示期间 REST 请求和实时连接被阻止，远程页面不创建可连接真实设备的 VNC 组件。
+
+2026-11-10 验证结果：
+
+- `--mode`、`--mode --ios` 通过：默认入口、未登录路由拦截、未登录零请求、设置入口点击、开关条件渲染、无效配置不改变活动会话、保存后清空历史、配置及模式跨重启保留、密钥不落盘、登录失败/成功、401 过期回登录、退出、演示收藏恢复和零网络请求。
+- 登录成功和过期流程采用本地 HTTP fixture；实时连接地址使用本机拒绝连接端口，未使用真实服务账号，也未将 SignalR 连接失败记录为真实联调通过。
+- 登录、系统设置及小屏安全区域的 Material/iOS 截图已检查，位于 `artifacts/mode-md/`、`artifacts/mode-ios/`。原页面回归两种风格各 57 张截图及交互断言通过，位于 `artifacts/mode-regression-md/`、`artifacts/mode-regression-ios/`。
+- `--navigation`、`--navigation --ios` 与 `--protocol` 通过。登录入口改为无返回按钮后，共用页头的回归覆盖为 36 个路由；工具栏、系统返回、Escape、弹窗优先级和无历史回退继续通过。
+- 运行中的 Miko Simulator 通过 MCP 验证登录无 Tab、设置入口、开关条件渲染、取消返回及进入本地主页；服务输入框盒模型正常。当前 MCP 截图仍出现黑屏，未用于视觉通过结论；视觉依据离屏及 Android 截图。DOM 和盒模型在 `artifacts/mode-mcp/`。
+- Android 16 Pixel 7 模拟器覆盖安装 x64 APK 后，实际点击关闭演示、输入服务配置、保存进入登录页；强制结束进程重启后仍为真实登录入口，设置页保留服务地址和客户端 ID。系统返回回到登录；再次启用演示并保存后可以进入本地主页。逐步截图位于 `artifacts/mode-android/`。
+- `dotnet build` 成功，0 错误，FBox 无警告；本次整仓构建有 5 条非 FBox 警告（Miko.Android 的 3 条既有警告，以及 Anime.Android 的 2 条 Android 弃用 API 警告）。Android `SignAndroidPackage` 成功，使用 `-p:EmbedAssembliesIntoApk=true -p:RuntimeIdentifier=android-x64`。
+
+日志：`artifacts/mode-md.log`、`mode-ios.log`、`mode-navigation-md.log`、`mode-navigation-ios.log`、`mode-protocol.log`、`mode-regression-md.log`、`mode-regression-ios.log`、`mode-solution-build.log`、`mode-android-build.log`。
+
 ## 问题列表第 1 项：返回无效
 
 已复现旧代码：设备列表点击进入监控页后，点击页头返回仍停在 `/monitor`，系统返回分发结果为 `false`。原因是 `PageHeader` 属于普通子组件，其继承的 `NavigationManager` 属性没有被路由系统赋值，原处理器通过空条件运算符静默跳过导航；自定义 `IonButton` 同时没有向系统返回链注册处理者。
