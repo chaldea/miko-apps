@@ -1,0 +1,27 @@
+using Miko.Components;
+using MikoApp.FBox.Models;
+using MikoApp.FBox.Services;
+
+namespace MikoApp.FBox.Components;
+
+public abstract class FBoxPage : ComponentBase, IDisposable
+{
+    [Inject] public FBoxStore Data { get; set; } = null!;
+    [Parameter] public long BoxId { get; set; }
+    protected Box? CurrentBox => Data.Boxes.FirstOrDefault(box => box.Id == BoxId);
+    protected string BoxRoute(string route) => FormattableString.Invariant($"{route}/{BoxId}");
+    protected bool IsBoxPage(string route) => string.Equals(
+        NavigationManager?.CurrentPath.Split('?', '#')[0].TrimEnd('/'), BoxRoute(route), StringComparison.OrdinalIgnoreCase);
+    private SynchronizationContext? _context;
+    protected override void OnInitialized() { _context = SynchronizationContext.Current; Data.Changed += Redraw; }
+    private void Redraw()
+    {
+        if (_context is not null && SynchronizationContext.Current != _context) _context.Post(_ => StateHasChanged(), null);
+        else StateHasChanged();
+    }
+    protected void Go(string route) => NavigationManager?.NavigateTo(route);
+    protected void GoRoot(string route) => NavigationManager?.NavigateTo(route, Miko.Routing.NavigationDirection.Root);
+    protected Task<bool> Run(Func<Task> action, string? message = null) => Data.RunAsync(action, message);
+    public virtual void Dispose() { Data.Changed -= Redraw; }
+    protected override void OnDispose() => Dispose();
+}

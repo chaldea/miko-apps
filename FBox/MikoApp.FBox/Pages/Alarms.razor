@@ -1,0 +1,70 @@
+@page "/alarms/{BoxId:long}"
+@inherits FBoxPage
+
+<IonPage>
+    <PageHeader Title="@CurrentBox?.Title"><Actions><IonButton OnClick="Refresh"><IconOnly><IonIcon Icon="refresh-outline" /></IconOnly></IonButton></Actions></PageHeader>
+    <IonHeader><IonSegment Value="@_tab" ValueChanged="TabChanged"><IonSegmentButton Value="current">当前报警</IonSegmentButton><IonSegmentButton Value="history">历史报警</IonSegmentButton><IonSegmentButton Value="rules">报警登记</IonSegmentButton></IonSegment></IonHeader>
+    <IonContent>
+        <Fixed>@if (_tab == "rules") { <IonFab Vertical="bottom" Horizontal="end"><IonFabButton Class="add-alarm" Href="@BoxRoute("/alarm-add")" Color="danger" Size="small"><IonIcon Icon="add" /></IonFabButton></IonFab> }</Fixed>
+        <ChildContent>
+            <PageStatus />
+            @if (_tab != "current") { <IonSearchbar Placeholder="搜索报警条目名称" @bind-Value="_query" /> }
+            @if (_tab == "rules" && CurrentBox is { } box)
+            {
+                @foreach (var rule in box.Alarms.Where(a => Match(a.Name)))
+                {
+                    <div class="alarm-card" @key="rule.Id"><div class="row"><IonIcon Icon="notifications-circle" /><span>@rule.Name</span></div><p>地址：　　　 @rule.Register @rule.Address</p><p>触发条件：　 @(rule.DataType == 0 ? (rule.On ? "ON" : "OFF") : $"等于 {rule.Threshold}")</p><p>报警内容：　 @rule.Message</p></div>
+                }
+                @if (box.Alarms.Count == 0) { <EmptyState Text="暂无报警条目" /> }
+            }
+            else if (_tab == "history")
+            {
+                <div class="date-fields"><IonInput Label="起" LabelPlacement="stacked" @bind-Value="_begin" /><IonInput Label="止" LabelPlacement="stacked" @bind-Value="_end" /><IonButton Fill="clear" OnClick="Refresh">查询</IonButton></div>
+                @foreach (var item in _history.Where(a => Match(a.Text("name"))))
+                {
+                    <div class="alarm-card"><div class="row"><span class="grow">@item.Text("name")</span><span class="muted">@item.Text("time")</span></div><p>报警值：@item.Text("value")</p><div class="row"><span class="grow muted">内容：@item.Text("message")</span><IonBadge Color="@(item.Flag("recovered") ? "primary" : "danger")">@(item.Flag("recovered") ? "恢复" : "触发")</IonBadge></div></div>
+                }
+                @if (_history.Count == 0 && !Store.Busy) { <EmptyState Text="该时间范围内没有报警记录" /> }
+            }
+            else
+            {
+                @foreach (var item in _current)
+                {
+                    <div class="alarm-card"><span>@item.Text("name")</span><p>@item.Text("message")</p><IonButton Size="small" OnClick="() => Confirm(item)">确认报警</IonButton></div>
+                }
+                @if (_current.Count == 0 && !Store.Busy) { <EmptyState Icon="notifications-outline" Text="当前没有任何报警" /> }
+            }
+        </ChildContent>
+    </IonContent>
+</IonPage>
+
+@code {
+    private string? _tab = "current", _query;
+    private string? _begin = "2026-11-03", _end = "2026-11-10";
+    private List<JsonNode> _current = [], _history = [];
+    protected override async Task OnInitializedAsync() { if (!Store.Demo) { _begin = DateTime.Today.AddDays(-7).ToString("yyyy-MM-dd"); _end = DateTime.Today.ToString("yyyy-MM-dd"); } await Refresh(); }
+    private bool Match(string name) => string.IsNullOrWhiteSpace(_query) || name.Contains(_query, StringComparison.OrdinalIgnoreCase);
+    private async Task TabChanged(string? tab) { _tab = tab; await Refresh(); StateHasChanged(); }
+    private async Task Refresh()
+    {
+        if (CurrentBox is not { } box) return;
+        await Run(async () =>
+        {
+            if (_tab == "rules") await Store.LoadAlarmsAsync(box);
+            else if (_tab == "current")
+            {
+                _current = Store.Demo ? [] : (await Store.Client.GetAsync($"/api/v2/box/{box.Id}/alarm/defs")).Items().Where(a => (a.Number("alarmState") & 1) != 0).Select(a => (JsonNode)new JsonObject { ["id"] = a.Number("id"), ["name"] = a.Text("name"), ["message"] = a.Text("alarmMsg") }).ToList();
+            }
+            else
+            {
+                if (!DateTime.TryParse(_begin, out var begin) || !DateTime.TryParse(_end, out var end) || end < begin) throw new InvalidOperationException("请输入有效的起止日期（yyyy-MM-dd）。");
+                if (Store.Demo)
+                {
+                    _history = begin <= new DateTime(2026,11,3) && end >= new DateTime(2026,11,3) ? [new JsonObject { ["name"] = "报警", ["time"] = "2026-11-03 15:47:43", ["value"] = "0", ["message"] = "测试报警", ["recovered"] = true }, new JsonObject { ["name"] = "报警", ["time"] = "2026-11-03 15:28:44", ["value"] = "1", ["message"] = "测试报警", ["recovered"] = false }] : [];
+                }
+                else _history = (await Store.Client.GetAsync($"/api/v2/box/{box.Id}/alarm/id/data/searchType?beginTime={new DateTimeOffset(begin).ToUnixTimeMilliseconds()}&endTime={new DateTimeOffset(end.AddDays(1)).ToUnixTimeMilliseconds()}&limit=500")).Items().Select(a => (JsonNode)new JsonObject { ["name"] = a.Text("rn"), ["time"] = DateTimeOffset.FromUnixTimeMilliseconds(a.Number("t")).LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss"), ["value"] = a.Text("v"), ["message"] = a.Text("m"), ["recovered"] = a.Number("a") == 3 }).ToList();
+            }
+        });
+    }
+    private async Task Confirm(JsonNode item) { await Run(async () => { await Store.Client.PostAsync($"/api/alarm/{item.Number("id")}/confirm"); _current.Remove(item); }, "报警已确认"); }
+}

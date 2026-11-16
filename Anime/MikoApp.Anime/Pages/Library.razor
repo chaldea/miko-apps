@@ -1,0 +1,35 @@
+@page "/history"
+@page "/favorites"
+@namespace MikoApp.Anime.Pages
+@inherits AsyncPage
+<IonPage>
+    <PageHeader Title="@(IsHistory ? "历史记录" : "我的收藏")" BackHref="/user"><Actions><IonButtons><IonButton OnClick="@(() => _edit = !_edit)">@(_edit ? "完成" : "编辑")</IonButton></IonButtons></Actions></PageHeader>
+    <IonContent><div class="page-padding">
+        <PageStatus Busy="@Busy" Message="@(Error ?? Store.StorageError)" OnRetry="Load" />
+        @if (!IsHistory && !Store.Profile.SignedIn)
+        { <div class="empty-state">登录后即可同步你的收藏</div><IonButton Expand="block" Fill="clear" Href="/login">前往登录</IonButton> }
+        else
+        {
+            <IonList>
+                @foreach (var title in Items)
+                {
+                    <IonItem @key="title.Id" Class="library-item" Button="@(!_edit)" OnClick="@(() => { if (!_edit) NavigationManager?.NavigateTo($"/detail/{title.Id}"); })" Lines="none">
+                        <Start><img class="library-image" src="@title.ThumbnailSource" placeholder="res://Assets/poster-placeholder.svg" /></Start>
+                        <ChildContent><IonLabel><div class="row-title">@title.Title</div><IonNote>@title.Status</IonNote><div class="library-genre">@(IsHistory ? WatchLabel(title.Id) : title.Genre)</div></IonLabel></ChildContent>
+                        <End>@if (_edit) { <IonButton Color="danger" Fill="clear" Size="small" Disabled="@Busy" OnClick="@(() => Remove(title.Id))">移除</IonButton> }</End>
+                    </IonItem>
+                }
+            </IonList>
+            @if (Items.Count == 0 && !Busy) { <div class="empty-state">@(IsHistory ? "还没有观看记录，去发现喜欢的番剧吧" : "还没有收藏，遇到喜欢的番剧记得收藏")</div> }
+        }
+    </div></IonContent>
+</IonPage>
+@code {
+    private bool IsHistory => NavigationManager?.CurrentPath == "/history";
+    private bool _edit;
+    private IReadOnlyList<AnimeTitle> Items => IsHistory ? Store.History.Select(h => Store.Find(h.AnimeId)).OfType<AnimeTitle>().ToArray() : Store.Favorites;
+    private string WatchLabel(int id) { var h = Store.History.First(x => x.AnimeId == id); return $"第 {h.Episode} 集 · {h.WatchedAt.ToLocalTime():MM-dd HH:mm}"; }
+    protected override Task OnInitializedAsync() => Load();
+    private Task Load() => Run(async () => { if (!IsHistory && Store.Profile.SignedIn) await Store.LoadFavoritesAsync(Lifetime.Token); });
+    private Task Remove(int id) => Run(async () => { if (IsHistory) Store.RemoveHistory(id); else await Store.ToggleFavoriteAsync(id, Lifetime.Token); });
+}

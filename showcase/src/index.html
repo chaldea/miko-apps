@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f8f9f6" />
+    <meta
+      name="description"
+      content="探索使用 Miko 构建的原生应用。从影音娱乐到物联网，发现跨平台界面的更多可能，浏览真实预览与开源实现。"
+    />
+    <title>Miko Apps — 原生体验，更多可能</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#apps">跳到应用列表</a>
+    <header class="site-header shell">
+      <a class="brand" href="./" aria-label="Miko Apps 首页"
+        ><span class="brand-mark" aria-hidden="true">m<span>·</span></span
+        ><span
+          >Miko<span class="brand-divider">/</span
+          ><span class="brand-light">Apps</span></span
+        ></a
+      >
+      <nav aria-label="主导航">
+        <a class="nav-active" href="#apps">应用集</a
+        ><a href="https://github.com/chaldea/miko"
+          >关于 Miko <span aria-hidden="true">↗</span></a
+        ><a class="github-link" href="{{repository}}"
+          ><svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+            <path
+              d="M12 .9a11.1 11.1 0 0 0-3.5 21.63c.55.1.76-.24.76-.53v-2.06c-3.1.67-3.75-1.32-3.75-1.32-.5-1.28-1.23-1.62-1.23-1.62-1.01-.7.08-.69.08-.69 1.12.08 1.7 1.15 1.7 1.15 1 1.7 2.6 1.21 3.24.92.1-.72.39-1.21.7-1.49-2.47-.28-5.06-1.23-5.06-5.49 0-1.21.43-2.2 1.14-2.98-.11-.28-.49-1.42.11-2.94 0 0 .93-.3 3.05 1.14a10.6 10.6 0 0 1 5.55 0c2.12-1.44 3.05-1.14 3.05-1.14.6 1.52.22 2.66.11 2.94.71.78 1.14 1.77 1.14 2.98 0 4.27-2.6 5.2-5.08 5.48.4.35.75 1.02.75 2.06V22c0 .29.2.64.77.53A11.1 11.1 0 0 0 12 .9Z"
+            /></svg
+          ><span>GitHub</span><span aria-hidden="true">↗</span></a
+        >
+      </nav>
+    </header>
+    <main class="shell">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">
+            <span class="live-dot"></span> THE MIKO SHOWCASE
+          </p>
+          <h1 id="hero-title">
+            原生体验。<br /><span>更多可能。</span
+            ><span class="heading-star" aria-hidden="true">✳</span>
+          </h1>
+          <p class="hero-description">
+            用 Miko 构建，让灵感成为应用。<br />探索精心打磨的跨平台体验，找到你的下一个起点。
+          </p>
+          <a class="explore-link" href="#apps"
+            >探索应用 <span aria-hidden="true">↓</span></a
+          >
+        </div>
+        <div class="hero-note">
+          <div class="note-icon" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </div>
+          <p class="note-kicker">ONE CODEBASE. NATIVE EVERYWHERE.</p>
+          <p class="note-title">从一份代码，<br />到每一块屏幕。</p>
+          <p class="note-description">Razor 构建 · SkiaSharp 原生绘制</p>
+          <div class="note-stats">
+            <div><strong>{{count}}</strong><span>开源应用</span></div>
+            <div><strong>{{platformCount}}</strong><span>目标平台</span></div>
+            <span class="note-spark" aria-hidden="true">↗</span>
+          </div>
+        </div>
+      </section>
+      <section id="apps" class="collection" aria-labelledby="collection-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow section-eyebrow">THE COLLECTION</p>
+            <h2 id="collection-title">
+              发现应用 <span class="total-count">{{count}}</span>
+            </h2>
+          </div>
+          <p>
+            真实界面，开放源码，随时探索。<span aria-hidden="true">↙</span>
+          </p>
+        </div>
+        <div class="filter-toolbar">
+          <div class="category-filters" role="group" aria-label="按分类筛选">
+            <button
+              type="button"
+              class="filter-chip"
+              data-category=""
+              aria-pressed="true"
+            >
+              全部应用<span>{{count}}</span></button
+            >{{categories}}
+          </div>
+          <div class="search-controls">
+            <label class="sr-only" for="platform">按平台筛选</label
+            ><select id="platform">
+              <option value="">所有平台</option>
+              {{platforms}}
+            </select>
+            <div class="search-field">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle
+                  cx="10.5"
+                  cy="10.5"
+                  r="6.5"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                />
+                <path
+                  d="m16 16 4 4"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                /></svg
+              ><label class="sr-only" for="search">搜索应用</label
+              ><input
+                id="search"
+                type="search"
+                placeholder="搜索名称、功能或标签…"
+                autocomplete="off"
+              /><button
+                id="clear-search"
+                type="button"
+                aria-label="清除搜索"
+                hidden
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="result-row">
+          <p
+            id="result-count"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            显示全部 {{count}} 个应用
+          </p>
+          <button id="reset-filters" type="button" hidden>
+            重置筛选 <span aria-hidden="true">↺</span>
+          </button>
+        </div>
+        <noscript
+          ><p class="noscript-note">
+            启用 JavaScript 即可搜索和筛选；所有应用仍可直接浏览。
+          </p></noscript
+        >
+        <div class="app-grid">{{cards}}</div>
+        <div id="empty-state" class="empty-state" hidden>
+          <span class="empty-symbol" aria-hidden="true">⌕</span>
+          <h3>还没有找到这个应用</h3>
+          <p>换个关键词，或清除筛选再看看。</p>
+          <button id="empty-reset" class="primary-button" type="button">
+            查看全部应用 <span aria-hidden="true">↗</span>
+          </button>
+        </div>
+      </section>
+      <aside class="contribute">
+        <div>
+          <span class="contribute-spark" aria-hidden="true">✳</span>
+          <div>
+            <h2>下一个作品，来自你。</h2>
+            <p>把你的想法变成原生体验，一起丰富 Miko 的应用世界。</p>
+          </div>
+        </div>
+        <a href="{{contributeUrl}}"
+          >添加你的应用 <span aria-hidden="true">↗</span></a
+        >
+      </aside>
+    </main>
+    <footer class="site-footer shell">
+      <a class="footer-brand" href="https://github.com/chaldea/miko"
+        >Built with <strong>Miko</strong><span class="live-dot"></span
+      ></a>
+      <p>用代码创造，让灵感发生。</p>
+      <a href="{{licenseUrl}}"
+        >代码以 MIT 协议开源 <span aria-hidden="true">↗</span></a
+      >
+    </footer>
+  </body>
+</html>

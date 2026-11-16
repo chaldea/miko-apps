@@ -1,0 +1,33 @@
+@using Miko.Core.DomElements
+@using Miko.Graphics
+
+<canvas class="chart" @ref="Canvas"></canvas>
+@code {
+    [Parameter] public IReadOnlyList<HistorySample> Samples { get; set; } = [];
+    private CanvasElement? _canvas;
+    private CanvasElement? Canvas { get => _canvas; set { _canvas = value; if (value is not null) value.Paint = Paint; } }
+    private void Paint(IDrawingContext context, RectF bounds)
+    {
+        var left = bounds.X + 45; var right = bounds.Right - 14; var top = bounds.Y + 20; var bottom = bounds.Bottom - 65;
+        if (Samples.Count == 0 || right <= left) return;
+        var min = Math.Min(0, Samples.Min(s => s.Value));
+        var max = Math.Max(min + 1, Math.Ceiling(Samples.Max(s => s.Value) / 20) * 20);
+        var ink = Color.FromHex("#526dff"); var gray = Color.FromHex("#737980");
+        void Text(string value, float x, float y, Color color) => context.DrawText(context.Graphics.CreateText(value, new TextStyle("Microsoft YaHei", 10)), x, y, color);
+        for (var i = 0; i <= 5; i++)
+        {
+            var y = bottom - (bottom - top) * i / 5;
+            context.StrokeLine(left, y, right, y, Color.FromHex("#dce2ea"), 1);
+            Text((min + (max - min) * i / 5).ToString("0.#"), bounds.X + 9, y + 3, gray);
+        }
+        for (var i = 1; i < Samples.Count; i++)
+        {
+            float X(int n) => left + (right - left) * n / Math.Max(1, Samples.Count - 1);
+            float Y(int n) => bottom - (float)((Samples[n].Value - min) / (max - min)) * (bottom - top);
+            context.StrokeLine(X(i - 1), Y(i - 1), X(i), Y(i), ink, 1.6f);
+        }
+        for (var i = 0; i < 4; i++) { var n = (Samples.Count - 1) * i / 3; Text(Samples[n].Time.ToString("HH:mm:ss"), left + (right - left - 45) * i / 3, bottom + 20, gray); }
+        context.StrokeLine(bounds.X + bounds.Width / 2 - 28, bottom + 48, bounds.X + bounds.Width / 2 - 8, bottom + 48, ink, 2);
+        Text("通道1", bounds.X + bounds.Width / 2, bottom + 52, gray);
+    }
+}

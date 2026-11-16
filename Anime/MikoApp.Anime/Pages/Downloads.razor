@@ -1,0 +1,15 @@
+@page "/downloads"
+@page "/messages"
+@namespace MikoApp.Anime.Pages
+<IonPage><PageHeader Title="@(IsDownloads ? "离线缓存" : "我的消息")" BackHref="/user" />
+    <IonContent><div class="page-padding">
+        @if (IsDownloads)
+        {
+            <IonList><IonItem Lines="none" Detail="true"><IonLabel>当前暂无下载任务</IonLabel></IonItem></IonList>
+            <h2 class="section-title">已下载</h2><IonNote>这里将显示已下载到本地的视频文件</IonNote>
+            <div class="empty-state">暂无离线视频</div><IonNote>离线下载暂未开放</IonNote>
+        }
+        else { <div class="empty-state">暂时没有新消息</div> }
+    </div></IonContent>
+</IonPage>
+@code { private bool IsDownloads => NavigationManager?.CurrentPath == "/downloads"; }

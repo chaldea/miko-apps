@@ -1,0 +1,17 @@
+<IonList>
+    @foreach (var box in Boxes)
+    {
+        <IonItem @key="box.Id" Class="device-row" Button="true" Detail="false" OnClick="() => Open(box)">
+            <Start><IonIcon Class="@(box.Online ? "online" : "offline")" Icon="@(box.Online ? "checkmark-circle" : "remove-circle")" /></Start>
+            <ChildContent><div class="device-line"><span class="device-name">@box.Title</span><span class="serial">@box.Number</span></div></ChildContent>
+            <End><IonIcon Class="muted" Icon="@(Selecting ? "ellipsis-horizontal" : "desktop-outline")" /></End>
+        </IonItem>
+    }
+</IonList>
+@code {
+    [Parameter] public IEnumerable<Box> Boxes { get; set; } = [];
+    [Parameter] public bool Selecting { get; set; }
+    [Parameter] public EventCallback<Box> OnOpen { get; set; }
+    [Parameter] public EventCallback<Box> OnAction { get; set; }
+    private async Task Open(Box box) { if (Selecting) await OnAction.InvokeAsync(box); else await OnOpen.InvokeAsync(box); }
+}

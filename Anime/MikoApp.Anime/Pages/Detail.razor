@@ -1,0 +1,6 @@
+@page "/detail/{Id:int}"
+@namespace MikoApp.Anime.Pages
+<DetailContent Id="@Id" />
+@code {
+    [Parameter] public int Id { get; set; }
+}

@@ -1,0 +1,50 @@
+@page "/settings"
+@page "/account-management"
+@page "/notifications"
+@page "/security"
+@page "/groups"
+@page "/privacy"
+@page "/agreement"
+@inherits FBoxPage
+
+<IonPage>
+    <PageHeader Title="@Title" BackHref="/account"><Actions>@if (Path == "/groups") { <IonButton Href="/group-add">新增</IonButton> }</Actions></PageHeader>
+    <IonContent>
+        <PageStatus />
+        @if (Path == "/settings")
+        {
+            <IonList><SettingRow Label="统一写" Href="/unified-writing" /><SettingRow Label="系统通知" Href="/notifications" /><SettingRow Label="萤石云账号设置" Href="/cloud-settings" /><IonItem Button="true" OnClick="Clear"><IonLabel>清除缓存</IonLabel></IonItem><SettingRow Label="用户协议" Href="/agreement" /><SettingRow Label="隐私政策" Href="/privacy" /><SettingRow Label="问题反馈" Href="/feedback" /></IonList>
+        }
+        else if (Path == "/account-management")
+        {
+            <IonList><SettingRow Icon="person-outline" Label="用户名" Value="@Store.Username" Href="/username" /><SettingRow Icon="call-outline" Label="手机号" Value="@_profile.Text("phoneNumber", Store.Demo ? "未绑定（演示）" : "未绑定")" /><SettingRow Icon="mail-outline" Label="邮箱" Value="@_profile.Text("email", "未绑定")" /><SettingRow Icon="lock-closed-outline" Label="密码" Value="********" Href="/password" /><SettingRow Icon="shield-checkmark-outline" Label="安全" Href="/security" /><SettingRow Icon="remove-circle" Label="注销账户" Value="注销后将无法恢复" Href="/cancel-account" /></IonList>
+        }
+        else if (Path == "/notifications")
+        {
+            <IonList><IonItem><IonToggle Justify="space-between" Checked="@Store.State.Notifications" CheckedChanged="NotificationChanged">系统通知</IonToggle></IonItem><IonItem><IonToggle Justify="space-between" Checked="@Store.State.AlarmNotifications" CheckedChanged="AlarmChanged">设备报警通知</IonToggle></IonItem><IonItem><IonToggle Justify="space-between" Checked="@Store.State.Sound" CheckedChanged="SoundChanged">提示声音</IonToggle></IonItem></IonList><p class="hint">通知偏好保存在当前设备。应用内实时报警通过连接中的服务接收。</p>
+        }
+        else if (Path == "/security")
+        {
+            <IonList><SettingRow Label="修改密码" Href="/password" /><SettingRow Label="连接方式" Value="HTTPS" /><SettingRow Label="令牌存储" Value="仅当前会话" /></IonList><p class="hint">退出登录会释放实时连接并清除当前会话令牌。</p>
+        }
+        else if (Path == "/groups")
+        {
+            <IonList>@foreach (var group in Store.Groups) { <SettingRow @key="group.Id" Label="@group.Name" Value="@($"{group.Boxes.Count} 台设备")" /> }</IonList>
+        }
+        else
+        {
+            <div class="page-padding legal"><h2>@Title</h2><p>本应用为 Miko FBox 演示客户端，用于设备管理、数据监控及历史数据查询。</p><p>演示模式使用本地数据。连接真实服务后，登录信息和操作请求仅发送到你配置的服务。真实服务的使用条款和隐私政策以服务提供方发布的内容为准。</p><p>本地存储包含演示设备、收藏和通知偏好；账户密码与访问令牌不会写入本地数据文件。扫码时需使用相机，识别结果仅用于填写设备资料。</p><p>远程写值、设备分享及删除操作应由具有相应权限的账户执行。</p></div>
+        }
+    </IonContent>
+</IonPage>
+@code {
+    private string Path => NavigationManager?.CurrentPath ?? "";
+    private string Title => Path switch { "/account-management" => "账号管理", "/notifications" => "系统通知", "/security" => "安全", "/groups" => "设备分组", "/privacy" => "隐私政策", "/agreement" => "用户协议", _ => "全局设置" };
+    private JsonNode? _profile;
+    protected override async Task OnInitializedAsync() { if (Path == "/account-management" && !Store.Demo && Store.Authenticated) await Run(async () => _profile = await Store.Client.GetAsync("/api/account/user", true)); }
+    private void NotificationChanged(bool value) { Store.State.Notifications = value; Save(); }
+    private void AlarmChanged(bool value) { Store.State.AlarmNotifications = value; Save(); }
+    private void SoundChanged(bool value) { Store.State.Sound = value; Save(); }
+    private void Save() { try { Store.Save(); } catch (Exception e) { Store.Error = e.Message; } StateHasChanged(); }
+    private void Clear() { Store.Samples.Clear(); Store.Notice = "临时查询缓存已清除"; StateHasChanged(); }
+}

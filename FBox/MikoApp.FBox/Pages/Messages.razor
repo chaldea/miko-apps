@@ -1,0 +1,24 @@
+@page "/messages"
+@inherits FBoxPage
+
+<IonPage>
+    <IonHeader><IonToolbar Class="search-toolbar"><IonSearchbar Placeholder="分享码/序列号" @bind-Value="_query" /></IonToolbar><IonSegment Value="@_tab" ValueChanged="Switch"><IonSegmentButton Value="todo">待办事项</IonSegmentButton><IonSegmentButton Value="processed">我已处理</IonSegmentButton><IonSegmentButton Value="applied">我的申请</IonSegmentButton></IonSegment></IonHeader>
+    <IonContent>
+        <PageStatus />
+        @foreach (var item in _items.Where(i => string.IsNullOrWhiteSpace(_query) || i.ToJsonString().Contains(_query, StringComparison.OrdinalIgnoreCase)))
+        {
+            <div class="alarm-card"><span>@item.Text("boxNo")</span><p>@item.Text("alias")　@item.Text("applyReason")</p><p>@item.Text("applyUserDisplay")</p>
+                @if (_tab == "todo") { <div class="row"><IonButton Size="small" OnClick="() => Review(item, true)">同意</IonButton><IonButton Size="small" Fill="outline" OnClick="() => Review(item, false)">拒绝</IonButton></div> }
+            </div>
+        }
+        @if (Store.Error is not null) { <IonButton Fill="clear" OnClick="Load">重试</IonButton> }
+    </IonContent>
+</IonPage>
+@code {
+    private string? _tab = "todo", _query;
+    private List<JsonNode> _items = [];
+    protected override async Task OnInitializedAsync() => await Load();
+    private async Task Switch(string? value) { _tab = value; await Load(); StateHasChanged(); }
+    private async Task Load() { await Run(async () => { if (Store.Demo) { _items = []; return; } var result = await Store.Client.PostAsync("/api/client/v2/apply/list", new { listType = _tab == "applied" ? 1 : 0, stateList = _tab == "todo" ? new[] { 0 } : _tab == "processed" ? new[] { 1, 2 } : new[] { 0, 1, 2 }, skipCount = 0, maxResultCount = 50 }); _items = result?["items"].Items().ToList() ?? []; }); }
+    private async Task Review(JsonNode item, bool accept) { await Run(async () => { await Store.Client.PostAsync("/api/client/v2/apply/change/state", new { id = item.Text("id"), state = accept ? 1 : 2 }); _items.Remove(item); }, "申请已处理"); }
+}

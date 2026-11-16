@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net11.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <StartupObject>MikoApp.Anime.Desktop.Program</StartupObject>
+    <StartupType>Desktop</StartupType>
+    <ApplicationIcon>../Branding/appicon.ico</ApplicationIcon>
+    <Title>Anime</Title>
+    <Product>Anime</Product>
+  </PropertyGroup>
+  <Import Project="../../Startup.props" />
+
+  <ItemGroup>
+    <EmbeddedResource Include="../Branding/appicon.png" LogicalName="Anime.AppIcon.png" />
+    <ProjectReference Include="..\MikoApp.Anime\MikoApp.Anime.csproj" />
+  </ItemGroup>
+
+</Project>
