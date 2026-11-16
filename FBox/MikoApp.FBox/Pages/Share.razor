@@ -1,4 +1,4 @@
-@page "/share"
+@page "/share/{BoxId:long}"
 @inherits FBoxPage
 @using Miko.Native.Clipboard
 @inject IClipboardService Clipboard
@@ -7,7 +7,7 @@
     <PageHeader Title="分享" />
     <IonContent>
         <PageStatus />
-        <div class="share-options"><IonButton Fill="clear" OnClick="@(() => Go("/shared-users"))"><Start><IonIcon Icon="person-circle-outline" /></Start><ChildContent>平台用户</ChildContent></IonButton><IonButton Fill="clear" OnClick="Copy"><Start><IonIcon Icon="copy-outline" /></Start><ChildContent>复制</ChildContent></IonButton><IonButton Class="generate-code" Fill="clear" OnClick="Generate"><Start><IonIcon Icon="keypad-outline" /></Start><ChildContent>分享码</ChildContent></IonButton></div>
+        <div class="share-options"><IonButton Fill="clear" OnClick="@(() => Go(BoxRoute("/shared-users")))"><Start><IonIcon Icon="person-circle-outline" /></Start><ChildContent>平台用户</ChildContent></IonButton><IonButton Fill="clear" OnClick="Copy"><Start><IonIcon Icon="copy-outline" /></Start><ChildContent>复制</ChildContent></IonButton><IonButton Class="generate-code" Fill="clear" OnClick="Generate"><Start><IonIcon Icon="keypad-outline" /></Start><ChildContent>分享码</ChildContent></IonButton></div>
         <IonList>
             <IonItem><IonToggle @bind-Checked="_write" Justify="space-between">写值</IonToggle></IonItem>
             <IonItem><IonToggle @bind-Checked="_edit" Justify="space-between">编辑</IonToggle></IonItem>
@@ -22,7 +22,7 @@
     private string? _validity = "permanent", _code;
     private async Task Generate()
     {
-        if (Store.Selected is not { } box) return;
+        if (CurrentBox is not { } box) return;
         await Run(async () =>
         {
             _code = Store.Demo ? "DEMO-" + box.Number[^6..] : (await Store.Client.PostAsync("/api/client/v2/box/share/code/generate", new { boxId = box.Id, options = new { variable = true, alarm = true, history = true, script = false, transfer = false, remote_device = true, remote_operate = false, role_permission = new { write = _write, edit = _edit }, validity_type = _validity == "permanent" ? 0 : 1, relative_day = _validity == "week" ? 7 : 1 } })).Text("code");

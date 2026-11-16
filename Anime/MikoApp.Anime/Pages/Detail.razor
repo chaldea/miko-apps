@@ -1,7 +1,6 @@
-@page "/detail"
+@page "/detail/{Id:int}"
 @namespace MikoApp.Anime.Pages
-<DetailContent @key="AnimeNavigation.SelectedId" Id="@AnimeNavigation.SelectedId" />
+<DetailContent Id="@Id" />
 @code {
-    protected override void OnInitialized() => AnimeNavigation.SelectionChanged += StateHasChanged;
-    protected override void OnDispose() => AnimeNavigation.SelectionChanged -= StateHasChanged;
+    [Parameter] public int Id { get; set; }
 }

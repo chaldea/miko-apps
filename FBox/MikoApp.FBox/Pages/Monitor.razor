@@ -1,14 +1,14 @@
-@page "/monitor"
+@page "/monitor/{BoxId:long}"
 @inherits FBoxPage
 
 <IonPage>
-    <PageHeader Title="@Store.Selected?.Title"><Actions><IonButton OnClick="Refresh" Disabled="@Store.Busy"><IconOnly><IonIcon Icon="refresh-outline" /></IconOnly></IonButton><IonButton OnClick="@(() => Go("/information"))"><IconOnly><IonIcon Icon="ellipsis-horizontal" /></IconOnly></IonButton></Actions></PageHeader>
+    <PageHeader Title="@CurrentBox?.Title"><Actions><IonButton OnClick="Refresh" Disabled="@Store.Busy"><IconOnly><IonIcon Icon="refresh-outline" /></IconOnly></IonButton><IonButton OnClick="@(() => Go(BoxRoute("/information")))"><IconOnly><IonIcon Icon="ellipsis-horizontal" /></IconOnly></IonButton></Actions></PageHeader>
     <IonContent>
-        <Fixed>@if (Store.Selected is not null) { <IonFab Vertical="bottom" Horizontal="end"><IonFabButton Class="add-point" Color="danger" Href="/point-add" Size="small"><IonIcon Icon="add" /></IonFabButton></IonFab> }</Fixed>
+        <Fixed>@if (CurrentBox is not null) { <IonFab Vertical="bottom" Horizontal="end"><IonFabButton Class="add-point" Color="danger" Href="@BoxRoute("/point-add")" Size="small"><IonIcon Icon="add" /></IonFabButton></IonFab> }</Fixed>
         <ChildContent>
             <PageStatus />
             <IonSearchbar Class="point-search" Placeholder="监控点名称" @bind-Value="_query" />
-            @if (Store.Selected is { } box)
+            @if (CurrentBox is { } box)
             {
                 @foreach (var group in box.Points.Where(p => string.IsNullOrWhiteSpace(_query) || p.Name.Contains(_query, StringComparison.OrdinalIgnoreCase)).GroupBy(p => p.Group))
                 {
@@ -32,7 +32,7 @@
     private string? _query;
     private readonly HashSet<string> _collapsed = [];
     private Box? _box;
-    protected override async Task OnInitializedAsync() { _box = Store.Selected; if (_box is not null) await Run(() => Store.LoadPointsAsync(_box)); }
+    protected override async Task OnInitializedAsync() { _box = CurrentBox; if (_box is not null) await Run(() => Store.LoadPointsAsync(_box)); }
     private async Task Refresh()
     {
         if (_box is null) return;
@@ -43,7 +43,7 @@
         });
     }
     private void Toggle(string name) { if (!_collapsed.Add(name)) _collapsed.Remove(name); }
-    private void Open(MonitorPoint point) { Store.SelectedPoint = point; Go("/point"); }
+    private void Open(MonitorPoint point) => Go($"/point/{BoxId}/{point.Id}");
     public override void Dispose() { base.Dispose(); if (_box is not null) _ = StopAsync(); }
     private async Task StopAsync() { try { await Store.StopPointsAsync(_box!); } catch (Exception) { /* Subscription expires server-side when offline. */ } }
 }

@@ -53,16 +53,15 @@
     private void FilterChanged(string? value) { _filter = value; StateHasChanged(); }
     private void Toggle(long id) { if (!_expanded.Add(id)) _expanded.Remove(id); }
     private async Task Refresh() { await Run(Store.RefreshAsync); }
-    private void Open(Box box) { Store.Selected = box; Go("/monitor"); }
+    private void Open(Box box) => Go($"/monitor/{box.Id}");
     private void Action(Box box) { _actionBox = box; _actions = true; StateHasChanged(); }
     private async Task ActionDismissed(IonOverlayDismissEventArgs e)
     {
         if (_actionBox is null) return;
-        Store.Selected = _actionBox;
         switch (e.Data as string)
         {
-            case "edit": Go("/box-edit"); break;
-            case "share": Go("/share"); break;
+            case "edit": Go($"/box-edit/{_actionBox.Id}"); break;
+            case "share": Go($"/share/{_actionBox.Id}"); break;
             case "favorite": await Run(() => Store.FavoriteAsync(_actionBox)); break;
             case "delete": _delete = true; StateHasChanged(); break;
         }

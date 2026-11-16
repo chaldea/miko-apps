@@ -8,7 +8,7 @@
         <PageStatus Busy="@Busy" Message="@Error" OnRetry="Load" />
         @foreach (var title in _groups.FirstOrDefault(g => g.Name == _group)?.Titles ?? [])
         {
-            <IonCard @key="title.Id" Class="ranking-card" Button="true" OnClick="@(() => AnimeNavigation.Open(title.Id))">
+            <IonCard @key="title.Id" Class="ranking-card" Button="true" OnClick="@(() => NavigationManager?.NavigateTo($"/detail/{title.Id}"))">
                 <div class="ranking-row"><img class="ranking-image" src="@title.PosterSource" placeholder="res://Assets/poster-placeholder.svg" /><div class="ranking-copy">
                     <div class="row-title">@title.Title</div><IonNote>@title.Year · @title.Status</IonNote>
                     <p class="description">@title.Description</p><IonBadge Color="light">@title.Genre</IonBadge>

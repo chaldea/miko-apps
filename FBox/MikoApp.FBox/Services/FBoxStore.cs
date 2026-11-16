@@ -11,13 +11,10 @@ public sealed class FBoxStore
     public FBoxRealtime Realtime { get; }
     public LocalState State { get; private set; } = new();
     public List<BoxGroup> Groups { get; private set; } = [];
-    public Box? Selected { get; set; }
-    public MonitorPoint? SelectedPoint { get; set; }
     public long HistoryId { get; set; }
     public long HistoryChannelId { get; set; }
     public List<HistoryChannel> HistoryChannels { get; private set; } = [];
     public string HistoryName { get; set; } = "温度采样";
-    public string? ScannedNumber { get; set; }
     public List<HistorySample> Samples { get; private set; } = [];
     public string? Error { get; set; }
     public string? Notice { get; set; }
@@ -106,7 +103,6 @@ public sealed class FBoxStore
             }).ToList()
         }).ToList();
         Groups = groups;
-        if (Selected is not null) Selected = Boxes.FirstOrDefault(b => b.Id == Selected.Id);
     }
 
     public async Task LoginAsync(string username, string password)
@@ -184,9 +180,8 @@ public sealed class FBoxStore
     private void ResetSession()
     {
         Demo = false; _signedIn = false; Username = "";
-        Groups = []; Selected = null; SelectedPoint = null; Samples = [];
+        Groups = []; Samples = [];
         HistoryId = 0; HistoryChannelId = 0; HistoryChannels = []; HistoryName = "温度采样";
-        ScannedNumber = null;
     }
 
     public BoxGroup? GroupOf(Box box) => Groups.FirstOrDefault(g => g.Boxes.Contains(box));
@@ -227,7 +222,7 @@ public sealed class FBoxStore
     public async Task DeleteAsync(Box box)
     {
         if (!Demo) await Client.DeleteAsync($"/api/client/v2/box/{box.Id}?isRemoveScript=true");
-        GroupOf(box)?.Boxes.Remove(box); if (Selected == box) Selected = null;
+        GroupOf(box)?.Boxes.Remove(box);
         if (Demo) Save();
     }
 
@@ -239,7 +234,7 @@ public sealed class FBoxStore
         else { Groups.Add(new() { Id = NextId(), Name = name }); Save(); }
     }
 
-    public async Task LoadPointsAsync(Box box)
+    public async Task LoadPointsAsync(Box box, bool startMonitoring = true)
     {
         if (Demo) return;
         var data = await Client.GetAsync($"/api/v2/box/{box.Id}/dmon/grouped");
@@ -248,7 +243,8 @@ public sealed class FBoxStore
             Id = p.Number("id"), Name = p.Text("name"), Group = g.Text("name", "默认组"), Register = p.Text("regName"), Address = (int)p.Number("addr"),
             Writable = (p.Number("privilege") & 2) != 0, Memo = p.Text("memo"), DataType = (int)p.Number("dataType"), AddressTagId = p.Number("addrTagUid"), TrueLabel = p["label"].Text("ttext", "1"), FalseLabel = p["label"].Text("ftext", "0")
         })).ToList();
-        foreach (var g in data.Items()) await Client.PostAsync($"/api/dmon/group/{g.Number("id")}/start");
+        if (startMonitoring)
+            foreach (var g in data.Items()) await Client.PostAsync($"/api/dmon/group/{g.Number("id")}/start");
     }
 
     public async Task StopPointsAsync(Box box)

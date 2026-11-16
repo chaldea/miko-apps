@@ -23,7 +23,7 @@
                 <div class="home-banner-frame"><IonSlides Class="home-banner" Pagination="true" Autoplay="true" AutoplayDelay="5000" Loop="true">
                     @foreach (var banner in Store.Banners)
                     {
-                        <IonSlide @key="banner.AnimeId"><IonCard Class="banner-card" Button="true" OnClick="@(() => AnimeNavigation.Open(banner.AnimeId))"><img class="banner-image" src="@banner.ImageSource" /></IonCard></IonSlide>
+                        <IonSlide @key="banner.AnimeId"><IonCard Class="banner-card" Button="true" OnClick="@(() => NavigationManager?.NavigateTo($"/detail/{banner.AnimeId}"))"><img class="banner-image" src="@banner.ImageSource" /></IonCard></IonSlide>
                     }
                 </IonSlides></div>
             }

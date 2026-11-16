@@ -27,6 +27,8 @@ Remove-Item Env:ANIME_OFFLINE
 
 ## 页面与行为
 
+详情页使用 Miko 标准路由 `/detail/{Id:int}`，例如 `/detail/123`；页面通过 `[Parameter]` 接收 ID。列表、轮播、推荐和观看记录均直接调用 `NavigationManager.NavigateTo`，返回时由 Miko 的历史栈恢复原来的番剧，无需全局选中项或自定义导航服务。
+
 - 三栏导航：首页、福利、我的；开屏自动进入首页。
 - 首页轮播、日漫/剧场版筛选与分页、搜索与搜索历史、排行榜、周排期。
 - 详情、分线路选集、简介面板、评论分页、收藏、原生视频播放、横屏全屏、弹幕颜色与位置面板。
@@ -55,6 +57,8 @@ Remove-Item Env:ANIME_OFFLINE
 ## 验证
 
 ```powershell
+# 详情直达、不同 ID 切换、返回恢复和海报点击导航
+dotnet run --project Anime/MikoApp.Anime.Verification -- --navigation
 # 本地演示数据：协议、原生点击、输入、弹窗、播放及截图
 dotnet run --project Anime/MikoApp.Anime.Verification
 # iOS 组件模式的同一套视觉交互验证

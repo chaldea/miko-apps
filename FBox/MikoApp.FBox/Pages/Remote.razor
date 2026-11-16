@@ -1,4 +1,4 @@
-@page "/remote"
+@page "/remote/{BoxId:long}"
 @page "/vnc-connect"
 @page "/scan"
 @inherits FBoxPage
@@ -7,7 +7,7 @@
 @using Miko.Components.Camera
 
 <IonPage>
-    <PageHeader Title="@(Scan ? "扫码添加" : Store.Selected?.Title ?? "远程监控")" />
+    <PageHeader Title="@(Scan ? "扫码添加" : CurrentBox?.Title ?? "远程监控")" />
     <IonContent>
         <PageStatus />
         @if (Scan)
@@ -35,7 +35,7 @@
     private JsonNode? _target;
     protected override async Task OnInitializedAsync()
     {
-        if (NavigationManager?.CurrentPath != "/remote" || Store.Demo || Store.Selected is not { } box) return;
+        if (!IsBoxPage("/remote") || Store.Demo || CurrentBox is not { } box) return;
         await Run(async () => _devices = (await Store.Client.GetAsync($"/api/v2/box/{box.Id}/plcdevice?getshutdown=false")).Items().Where(d => d.Number("plcId") == 266).ToList());
     }
     private void Connect(JsonNode device) { _target = device; StateHasChanged(); }
@@ -46,7 +46,7 @@
     {
         _scanResult = code.Text;
         var match = System.Text.RegularExpressions.Regex.Match(code.Text, @"(?<!\d)\d{12}(?!\d)");
-        if (match.Success) { Store.ScannedNumber = match.Value; Go("/box-add"); }
+        if (match.Success) NavigationManager?.NavigateTo("/box-add", new BoxRegistrationState(match.Value));
         else { Store.Error = "二维码中没有有效的 12 位设备序列号，请手动输入。"; StateHasChanged(); }
     }
 }

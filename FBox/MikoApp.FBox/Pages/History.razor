@@ -1,8 +1,8 @@
-@page "/history"
+@page "/history/{BoxId:long}"
 @inherits FBoxPage
 
 <IonPage>
-    <PageHeader Title="@Store.Selected?.Title" />
+    <PageHeader Title="@CurrentBox?.Title" />
     <IonContent>
         <Fixed><IonFab Vertical="bottom" Horizontal="end"><div class="row"><IonFabButton Size="small" OnClick="() => _filter = !_filter"><IonIcon Icon="search-outline" /></IonFabButton><IonFabButton Class="toggle-chart" Size="small" OnClick="() => _chart = !_chart"><IonIcon Icon="@(_chart ? "list-outline" : "analytics-outline")" /></IonFabButton></div></IonFab></Fixed>
         <ChildContent>
@@ -29,7 +29,7 @@
     protected override async Task OnInitializedAsync() { if (!Store.Demo) { _begin = DateTime.Today.AddDays(-7).ToString("yyyy-MM-dd"); _end = DateTime.Today.ToString("yyyy-MM-dd"); } await Load(); }
     private async Task Load()
     {
-        if (Store.Selected is not { } box) return;
+        if (CurrentBox is not { } box) return;
         await Run(async () => { if (!DateTime.TryParse(_begin, out var begin) || !DateTime.TryParse(_end, out var end)) throw new InvalidOperationException("日期格式应为 yyyy-MM-dd。"); if (long.TryParse(_channel, out var channel)) Store.HistoryChannelId = channel; await Store.LoadHistoryAsync(box, begin, end.AddDays(1).AddTicks(-1)); _channel = Store.HistoryChannelId.ToString(); });
     }
 }

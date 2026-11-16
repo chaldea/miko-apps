@@ -1,5 +1,5 @@
 @page "/box-add"
-@page "/box-edit"
+@page "/box-edit/{BoxId:long}"
 @page "/group-add"
 @page "/share-add"
 @inherits FBoxPage
@@ -38,18 +38,19 @@
 
 @code {
     private string Path => NavigationManager?.CurrentPath ?? "";
-    private bool Edit => Path == "/box-edit";
-    private string Title => Path switch { "/box-edit" => "更新信息", "/group-add" => "新增分组", "/share-add" => "分享码添加", _ => "添加设备" };
+    private bool Edit => IsBoxPage("/box-edit");
+    private string Title => Edit ? "更新信息" : Path switch { "/group-add" => "新增分组", "/share-add" => "分享码添加", _ => "添加设备" };
     private string? _number, _password, _alias, _memo;
     private string? _group = "Default";
     protected override void OnInitialized()
     {
         base.OnInitialized(); Store.Error = null; Store.Notice = null;
-        if (!Edit && Store.ScannedNumber is { } scanned) { _number = scanned; Store.ScannedNumber = null; }
-        if (Edit && Store.Selected is { } box) { _number = box.Number; _alias = box.Title; _memo = box.Memo; _group = Store.GroupOf(box)?.Name; }
+        if (Path == "/box-add") _number = NavigationManager?.GetState<BoxRegistrationState>()?.Number;
+        if (Edit && CurrentBox is { } box) { _number = box.Number; _alias = box.Title; _memo = box.Memo; _group = Store.GroupOf(box)?.Name; }
     }
     private async Task Submit()
     {
+        if (Edit && CurrentBox is null) return;
         var ok = await Run(async () =>
         {
             if (Path == "/group-add") await Store.AddGroupAsync(_alias ?? "");
@@ -59,9 +60,9 @@
                 if (Store.Demo) { if (!Store.Boxes.Any(b => ("DEMO-" + b.Number[^6..]).Equals(_number.Trim(), StringComparison.OrdinalIgnoreCase))) throw new InvalidOperationException("演示分享码无效，请从设备的分享页面生成。"); }
                 else await Store.Client.PostAsync("/api/client/v2/apply/box/code", new { code = _number });
             }
-            else if (Edit && Store.Selected is { } box) await Store.EditBoxAsync(box, _alias ?? "", _group ?? "Default", _memo ?? "");
+            else if (Edit && CurrentBox is { } box) await Store.EditBoxAsync(box, _alias ?? "", _group ?? "Default", _memo ?? "");
             else await Store.AddBoxAsync(_number ?? "", _password ?? "", _alias ?? "", _group ?? "Default");
         }, Path == "/share-add" ? (Store.Demo ? "演示申请已验证" : "访问申请已提交") : "保存成功");
-        if (ok && Path != "/share-add") Go(Edit ? "/information" : "/devices");
+        if (ok && Path != "/share-add") Go(Edit ? BoxRoute("/information") : "/devices");
     }
 }

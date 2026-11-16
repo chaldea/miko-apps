@@ -151,6 +151,9 @@ internal sealed class AppHarness : IDisposable
         Pump();
     }
 
+    public string? InputValue(string className) =>
+        Descendants(Find(className).Single()).OfType<InputElement>().Single().Value;
+
     public void Dispose()
     {
         _context.Engine.DisposeVideoSessions();

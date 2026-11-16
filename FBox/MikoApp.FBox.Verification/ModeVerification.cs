@@ -29,7 +29,7 @@ internal static class ModeVerification
         AppHarness.Require(app.Route == "/login" && !store.Authenticated && !app.Find("ion-tab-button").Any(), "Cold start requires an explicit session");
         app.Capture("01-demo-entry");
 
-        foreach (var route in new[] { "/devices", "/monitor", "/account", "/messages", "/settings", "/box-add", "/history" })
+        foreach (var route in new[] { "/devices", "/monitor/100", "/account", "/messages", "/settings", "/box-add", "/history/100" })
         {
             app.Navigate(route);
             AppHarness.Require(app.Route == "/login" && !app.Find("ion-tab-button").Any() && !store.Boxes.Any(), "Unauthenticated route blocked: " + route);
@@ -94,7 +94,7 @@ internal static class ModeVerification
         app.ClickClass("enter-demo");
         AppHarness.Require(store.Demo && store.Boxes.First(b => b.Number == demoNumber).Favorite == favorite, "Returning to demo restores its separate saved state");
         app.ClickText("device-row", "9468-vnc"); app.ClickClass("back-button");
-        foreach (var route in new[] { "/remote", "/vnc-connect" })
+        foreach (var route in new[] { "/remote/100", "/vnc-connect" })
         {
             app.Navigate(route);
             AppHarness.Require(app.Text.Contains("演示模式不连接远程设备"), "Demo blocks remote connection: " + route);

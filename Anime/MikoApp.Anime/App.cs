@@ -45,7 +45,6 @@ public static class App
         builder.Services.AddSingleton<AnimeSettings>();
         builder.Services.AddSingleton(sp => new LanercClient(sp.GetRequiredService<AnimeSettings>()));
         builder.Services.AddSingleton<AnimeStore>();
-        builder.Services.AddSingleton<AnimeNavigator>();
         builder.AddResourceAssembly(typeof(App).Assembly);
         builder.AddStyleSheet(GlobalStyles.Create());
 

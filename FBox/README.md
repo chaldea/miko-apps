@@ -35,6 +35,8 @@ Android 构建需要对应 .NET workload/Android SDK；iOS 真机打包需要 Ma
 
 ## 页面与行为
 
+设备页面使用带 ID 的 Miko 路由，例如 `/monitor/100`、`/box-edit/100`；监控点详情为 `/point/100/1`（设备 ID / 监控点 ID）。页面通过 `[Parameter]` 接收 ID，再从 Store 查询数据；Tab、子页面链接和返回地址均保留设备 ID，不再依赖全局选中设备或监控点。扫码通过 `NavigateTo("/box-add", new BoxRegistrationState(number))` 传递预填数据，新增表单通过 `GetState<BoxRegistrationState>()` 读取，返回时由导航历史恢复；手动新增不会沿用上次扫码结果。
+
 - 设备：分组展开、搜索、收藏和报警筛选、排序、添加、编辑、分享、删除确认。
 - 监控：分组列表、搜索、订阅实时值、新增 Local LB/LW 点、地址标签、读写权限和离线写入保护。
 - 报警：当前报警及确认、时间范围内的历史报警、登记列表、新增位/数值相等条件。

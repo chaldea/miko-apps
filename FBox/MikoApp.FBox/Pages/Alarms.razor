@@ -1,15 +1,15 @@
-@page "/alarms"
+@page "/alarms/{BoxId:long}"
 @inherits FBoxPage
 
 <IonPage>
-    <PageHeader Title="@Store.Selected?.Title"><Actions><IonButton OnClick="Refresh"><IconOnly><IonIcon Icon="refresh-outline" /></IconOnly></IonButton></Actions></PageHeader>
+    <PageHeader Title="@CurrentBox?.Title"><Actions><IonButton OnClick="Refresh"><IconOnly><IonIcon Icon="refresh-outline" /></IconOnly></IonButton></Actions></PageHeader>
     <IonHeader><IonSegment Value="@_tab" ValueChanged="TabChanged"><IonSegmentButton Value="current">当前报警</IonSegmentButton><IonSegmentButton Value="history">历史报警</IonSegmentButton><IonSegmentButton Value="rules">报警登记</IonSegmentButton></IonSegment></IonHeader>
     <IonContent>
-        <Fixed>@if (_tab == "rules") { <IonFab Vertical="bottom" Horizontal="end"><IonFabButton Class="add-alarm" Href="/alarm-add" Color="danger" Size="small"><IonIcon Icon="add" /></IonFabButton></IonFab> }</Fixed>
+        <Fixed>@if (_tab == "rules") { <IonFab Vertical="bottom" Horizontal="end"><IonFabButton Class="add-alarm" Href="@BoxRoute("/alarm-add")" Color="danger" Size="small"><IonIcon Icon="add" /></IonFabButton></IonFab> }</Fixed>
         <ChildContent>
             <PageStatus />
             @if (_tab != "current") { <IonSearchbar Placeholder="搜索报警条目名称" @bind-Value="_query" /> }
-            @if (_tab == "rules" && Store.Selected is { } box)
+            @if (_tab == "rules" && CurrentBox is { } box)
             {
                 @foreach (var rule in box.Alarms.Where(a => Match(a.Name)))
                 {
@@ -47,7 +47,7 @@
     private async Task TabChanged(string? tab) { _tab = tab; await Refresh(); StateHasChanged(); }
     private async Task Refresh()
     {
-        if (Store.Selected is not { } box) return;
+        if (CurrentBox is not { } box) return;
         await Run(async () =>
         {
             if (_tab == "rules") await Store.LoadAlarmsAsync(box);

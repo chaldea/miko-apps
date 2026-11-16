@@ -1,4 +1,5 @@
 using Miko.Components;
+using MikoApp.FBox.Models;
 using MikoApp.FBox.Services;
 
 namespace MikoApp.FBox.Components;
@@ -6,6 +7,11 @@ namespace MikoApp.FBox.Components;
 public abstract class FBoxPage : ComponentBase, IDisposable
 {
     [Inject] public FBoxStore Data { get; set; } = null!;
+    [Parameter] public long BoxId { get; set; }
+    protected Box? CurrentBox => Data.Boxes.FirstOrDefault(box => box.Id == BoxId);
+    protected string BoxRoute(string route) => FormattableString.Invariant($"{route}/{BoxId}");
+    protected bool IsBoxPage(string route) => string.Equals(
+        NavigationManager?.CurrentPath.Split('?', '#')[0].TrimEnd('/'), BoxRoute(route), StringComparison.OrdinalIgnoreCase);
     private SynchronizationContext? _context;
     protected override void OnInitialized() { _context = SynchronizationContext.Current; Data.Changed += Redraw; }
     private void Redraw()

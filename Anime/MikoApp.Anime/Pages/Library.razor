@@ -13,7 +13,7 @@
             <IonList>
                 @foreach (var title in Items)
                 {
-                    <IonItem @key="title.Id" Class="library-item" Button="@(!_edit)" OnClick="@(() => { if (!_edit) AnimeNavigation.Open(title.Id); })" Lines="none">
+                    <IonItem @key="title.Id" Class="library-item" Button="@(!_edit)" OnClick="@(() => { if (!_edit) NavigationManager?.NavigateTo($"/detail/{title.Id}"); })" Lines="none">
                         <Start><img class="library-image" src="@title.ThumbnailSource" placeholder="res://Assets/poster-placeholder.svg" /></Start>
                         <ChildContent><IonLabel><div class="row-title">@title.Title</div><IonNote>@title.Status</IonNote><div class="library-genre">@(IsHistory ? WatchLabel(title.Id) : title.Genre)</div></IonLabel></ChildContent>
                         <End>@if (_edit) { <IonButton Color="danger" Fill="clear" Size="small" Disabled="@Busy" OnClick="@(() => Remove(title.Id))">移除</IonButton> }</End>

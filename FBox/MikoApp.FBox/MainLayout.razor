@@ -21,11 +21,11 @@
             @if (Store.Authenticated && IsBox)
             {
                 <IonTabBar>
-                    <IonTabButton OnClick="@(() => GoBox("/monitor"))" Selected="@(Path == "/monitor")"><IonIcon Icon="pulse-outline" /><IonLabel>数据监控</IonLabel></IonTabButton>
-                    <IonTabButton OnClick="@(() => GoBox("/alarms"))" Selected="@(Path == "/alarms")"><IonIcon Icon="document-text-outline" /><IonLabel>报警记录</IonLabel></IonTabButton>
-                    <IonTabButton OnClick="@(() => GoBox("/history"))" Selected="@(Path == "/history")"><IonIcon Icon="time-outline" /><IonLabel>历史记录</IonLabel></IonTabButton>
-                    <IonTabButton OnClick="@(() => GoBox("/remote"))" Selected="@(Path == "/remote")"><IonIcon Icon="desktop-outline" /><IonLabel>远程监控</IonLabel></IonTabButton>
-                    <IonTabButton OnClick="@(() => GoBox("/information"))" Selected="@(Path == "/information")"><IonIcon Icon="grid-outline" /><IonLabel>更多</IonLabel></IonTabButton>
+                    <IonTabButton OnClick="@(() => GoBox("/monitor"))" Selected="@(Path == BoxRoute("/monitor"))"><IonIcon Icon="pulse-outline" /><IonLabel>数据监控</IonLabel></IonTabButton>
+                    <IonTabButton OnClick="@(() => GoBox("/alarms"))" Selected="@(Path == BoxRoute("/alarms"))"><IonIcon Icon="document-text-outline" /><IonLabel>报警记录</IonLabel></IonTabButton>
+                    <IonTabButton OnClick="@(() => GoBox("/history"))" Selected="@(Path == BoxRoute("/history"))"><IonIcon Icon="time-outline" /><IonLabel>历史记录</IonLabel></IonTabButton>
+                    <IonTabButton OnClick="@(() => GoBox("/remote"))" Selected="@(Path == BoxRoute("/remote"))"><IonIcon Icon="desktop-outline" /><IonLabel>远程监控</IonLabel></IonTabButton>
+                    <IonTabButton OnClick="@(() => GoBox("/information"))" Selected="@(Path == BoxRoute("/information"))"><IonIcon Icon="grid-outline" /><IonLabel>更多</IonLabel></IonTabButton>
                 </IonTabBar>
             }
         </Bottom>
@@ -34,9 +34,11 @@
 </IonApp>
 
 @code {
-    private string Path => NavigationManager?.CurrentPath ?? "/";
+    private string Path => "/" + (NavigationManager?.CurrentPath ?? "/").Split('?', '#')[0].Trim('/');
     private bool IsMain => Path is "/" or "/devices" or "/messages" or "/account";
-    private bool IsBox => Path is "/monitor" or "/alarms" or "/history" or "/remote" or "/information";
+    private string? BoxId => Path.Split('/') is [_, "monitor" or "alarms" or "history" or "remote" or "information", var id] ? id : null;
+    private string BoxRoute(string path) => FormattableString.Invariant($"{path}/{BoxId}");
+    private bool IsBox => BoxId is not null;
     private bool _add;
     private bool _canRenderPage;
     private SynchronizationContext? _context;
@@ -62,6 +64,6 @@
     }
     protected override void OnDispose() => Store.Changed -= RefreshAccess;
     private void OpenAdd() { _add = true; StateHasChanged(); }
-    private void GoBox(string path) => NavigationManager?.NavigateTo(path);
+    private void GoBox(string path) => NavigationManager?.NavigateTo(BoxRoute(path));
     private void AddDismissed(IonOverlayDismissEventArgs e) { if (e.Data is string path) NavigationManager?.NavigateTo(path); }
 }

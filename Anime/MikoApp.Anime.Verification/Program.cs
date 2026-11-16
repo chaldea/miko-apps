@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using MikoApp.Anime.Services;
 using MikoApp.Anime.Verification;
 
+if (args.Contains("--navigation")) { NavigationVerification.Run(); return; }
 if (args.Contains("--refresh-demo")) { await DemoSnapshotCapture.RunAsync(); return; }
 if (args.Contains("--demo-mode")) { DemoModeVerification.Run(); return; }
 if (args.Contains("--safe-area")) { SafeAreaVerification.Run(); return; }
@@ -30,7 +31,7 @@ if (args.Contains("--live-ui"))
     app.Pump(100); app.Capture("home");
     var store = app.Service<AnimeStore>();
     Require(!store.IsPreview, "Live UI loaded remote catalog");
-    app.Service<AnimeNavigator>().Open(store.Hot.First().Id);
+    app.Navigate($"/detail/{store.Hot.First().Id}");
     app.Pump(1000); app.Capture("detail");
     if (app.Find("captcha-modal").Any(e => !e.HasClass("overlay-hidden"))) app.ClickText("ion-button", "关闭");
     app.ClickText("ion-segment-button", "评论"); app.Pump(300); app.Capture("comments");
@@ -110,7 +111,7 @@ harness.Navigate("/trending"); harness.Capture("07-ranking");
 harness.Navigate("/timetable"); harness.Capture("08-timetable");
 harness.Navigate("/vip"); harness.Capture("09-welfare");
 harness.Navigate("/user"); harness.Capture("10-guest-profile");
-harness.Service<AnimeNavigator>().Open(demoTitle.Id); harness.Pump(70); harness.Capture("11-detail");
+harness.Navigate($"/detail/{demoTitle.Id}"); harness.Pump(70); harness.Capture("11-detail");
 harness.ClickClass("open-episodes"); harness.Capture("12-episodes"); harness.ClickClass("close-detail-panel");
 harness.ClickClass("open-synopsis"); harness.Capture("13-synopsis"); harness.ClickClass("close-detail-panel");
 harness.ClickText("ion-segment-button", "评论"); harness.Capture("14-comments");

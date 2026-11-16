@@ -14,7 +14,7 @@
     </IonRow></IonGrid>
     @if (Store.History.FirstOrDefault() is { } recent && Store.Find(recent.AnimeId) is { } title)
     {
-        <IonList><IonItem Class="continue-watching" Button="true" OnClick="@(() => AnimeNavigation.Open(title.Id))" Lines="none" Detail="true"><ChildContent><IonLabel>@title.Title</IonLabel></ChildContent><End><IonNote>继续追番</IonNote></End></IonItem></IonList>
+        <IonList><IonItem Class="continue-watching" Button="true" OnClick="@(() => NavigationManager?.NavigateTo($"/detail/{title.Id}"))" Lines="none" Detail="true"><ChildContent><IonLabel>@title.Title</IonLabel></ChildContent><End><IonNote>继续追番</IonNote></End></IonItem></IonList>
     }
     </IonCard>
     <IonGrid><IonRow><IonCol Size="6"><IonButton Expand="block" Fill="clear" OnClick="@(() => Show("入站问答", "问答功能暂未开放，敬请期待。"))">入站问答</IonButton></IonCol><IonCol Size="6"><IonButton Expand="block" Fill="clear" OnClick="@(() => Show("主题切换", "当前使用清新浅色主题。"))">主题切换</IonButton></IonCol></IonRow></IonGrid>
