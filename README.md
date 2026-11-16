@@ -13,10 +13,23 @@ This repository provides practical examples of how to build different types of a
 
 To list a new sample, add a row to this table with its directory, a short description, and a link to its README. Keep app-specific setup, features, and limitations in that app's README so this table remains the central application index.
 
+## Application Showcase
+
+The [showcase website](showcase/README.md) presents the apps with covers composed from native screenshots, category and platform filters, and keyword search. Each card links to the app's source directory. App metadata lives in `showcase/apps.json`; the reusable cover tool can refresh native screenshots and generate covers for new apps.
+
+```sh
+cd showcase
+npm ci
+npm run dev
+```
+
+The [GitHub Pages workflow](.github/workflows/showcase.yml) tests pull requests and deploys site changes on `main`. Enable **GitHub Actions** as the Pages source in repository settings for the first deployment. See the [showcase guide](showcase/README.md) for cover generation, adding apps, testing, and publishing.
+
 ## Repository Structure
 
 ```text
 miko/                   Miko framework source (Git submodule)
+showcase/               Static app gallery, catalog, native screenshots, and cover generator
 <AppName>/               An individual sample application
   MikoApp.<AppName>/     Shared Razor pages, styles, and application logic
   ...Desktop/           Desktop host, when provided
