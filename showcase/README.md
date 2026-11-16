@@ -10,11 +10,10 @@
 
 ```sh
 cd showcase
-npm ci
 npm run dev
 ```
 
-打开终端显示的 `http://127.0.0.1:4173/`。修改清单或页面后重新运行 `npm run build`，刷新浏览器即可。`npm run build` 本身仅依赖 Node 标准库，不需要 .NET、Miko 子模块、浏览器或联网；输出在 `showcase/dist/`。
+打开终端显示的 `http://127.0.0.1:4173/`。修改清单或页面后重新运行 `npm run build`，刷新浏览器即可。站点构建和预览仅依赖 Node 标准库，无需执行 `npm ci`，不需要 .NET、Miko 子模块、Playwright、浏览器或联网；输出在 `showcase/dist/`。
 
 ## 应用清单
 
@@ -32,16 +31,17 @@ npm run dev
 
 封面工具用两张真实原生截图合成带应用名称、主题色和设备边框的 **1440 × 1000 PNG**。它只处理本地文件，不生成或假造应用界面，不访问线上业务服务。封面图片可独立用于网站或 README。
 
-首次使用需安装 Chromium（仅生成封面和浏览器验证需要）：
+首次使用需安装开发依赖和 Chromium（仅生成封面和浏览器验证需要）：
 
 ```sh
+npm ci
 npx playwright install chromium
 npm run covers                 # 使用已提交的截图，生成全部封面
 npm run covers -- anime        # 只生成 Anime
 npm run covers -- --help
 ```
 
-也可复用已安装的 Chrome 或 Edge：设置环境变量 `PLAYWRIGHT_CHANNEL=chrome` 或 `msedge` 后运行封面或测试命令；未设置时使用 Playwright 安装的 Chromium。CI 固定使用 Chromium。
+也可复用已安装的 Chrome 或 Edge：设置环境变量 `PLAYWRIGHT_CHANNEL=chrome` 或 `msedge` 后运行封面或测试命令；未设置时使用 Playwright 安装的 Chromium。站点发布流程不安装或使用浏览器。
 
 刷新原生截图并生成封面：
 
@@ -57,6 +57,15 @@ npm run covers -- fbox --capture
 
 ## 验证
 
+仅校验清单和构建站点，无需安装任何 npm 依赖：
+
+```sh
+node --test scripts/catalog.test.mjs
+npm run build
+```
+
+运行完整的本地浏览器测试时，才需要安装开发依赖和 Chromium：
+
 ```sh
 npm ci
 npx playwright install chromium
@@ -69,8 +78,9 @@ npm test
 
 工作流位于 `.github/workflows/showcase.yml`：
 
-- PR 中修改站点时执行构建和测试，不部署。
+- PR 中修改站点时执行 Node.js 内置测试运行器的清单检查和静态构建，不部署。
 - `main` 分支上的站点改动通过验证后，上传 `showcase/dist/` 并部署到 Pages。
+- 发布流程无需 `npm ci`、npm 缓存、Playwright 或 Chromium；直接使用已提交的封面。浏览器测试保留为本地开发验证命令。
 - 可以在 Actions 页面手动运行；部署限制在 `main` 分支。
 - 构建只有读取权限；部署单独授予 `pages: write` 和 `id-token: write`。
 

@@ -28,18 +28,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: showcase/package-lock.json
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: npm test
-      - name: Upload browser diagnostics
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: showcase-test-results
-          path: showcase/test-results
-          retention-days: 7
+      # The catalog checks and static build use only Node.js built-in modules.
+      # Playwright is needed only for local cover generation and browser tests.
+      - name: Validate app catalog
+        run: node --test scripts/catalog.test.mjs
       - name: Build static site
         run: npm run build
       - uses: actions/upload-pages-artifact@v3
