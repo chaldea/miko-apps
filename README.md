@@ -19,11 +19,10 @@ The [showcase website](showcase/README.md) presents the apps with covers compose
 
 ```sh
 cd showcase
-npm ci
 npm run dev
 ```
 
-The [GitHub Pages workflow](.github/workflows/showcase.yml) tests pull requests and deploys site changes on `main`. Enable **GitHub Actions** as the Pages source in repository settings for the first deployment. See the [showcase guide](showcase/README.md) for cover generation, adding apps, testing, and publishing.
+The [GitHub Pages workflow](.github/workflows/showcase.yml) validates the catalog and builds pull requests, then deploys site changes on `main`. Building and publishing use only Node.js built-in modules; Playwright is needed only for local cover generation and browser tests. Enable **GitHub Actions** as the Pages source in repository settings for the first deployment. See the [showcase guide](showcase/README.md) for cover generation, adding apps, testing, and publishing.
 
 ## Repository Structure
 
