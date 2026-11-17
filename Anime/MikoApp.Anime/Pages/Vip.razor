@@ -1,0 +1,28 @@
+@page "/vip"
+@namespace MikoApp.Anime.Pages
+<IonPage>
+    <IonHeader><IonToolbar><IonTitle>福利中心</IonTitle></IonToolbar></IonHeader>
+    <IonContent><div class="page-padding">
+        <div class="section-heading"><IonLabel>我的金币</IonLabel><IonButton Size="small" Fill="clear" OnClick="Unavailable">活动规则 ›</IonButton></div>
+        <IonCard Class="coins-card"><IonCardContent><div class="section-heading"><div class="coin-count">@Store.Coins</div><IonButton Color="light" Shape="round" Size="small" OnClick="@(() => _records = !_records)">兑换记录</IonButton></div><p>金币可用于兑换免广告特权和精美礼品 ～</p></IonCardContent></IonCard>
+        <h2 class="section-title">任务列表</h2>
+        @foreach (var task in Tasks)
+        {
+            <IonCard Class="task-card"><IonList><IonItem Lines="none">
+                <Start><IonIcon Icon="@task.Icon" Color="primary" /></Start><ChildContent><IonLabel><div class="row-title">@task.Title</div><IonNote>@task.Description</IonNote></IonLabel></ChildContent>
+                <End><IonButton Shape="round" Size="small" OnClick="Unavailable">获取奖励</IonButton></End>
+            </IonItem></IonList></IonCard>
+        }
+        <Notice Message="@_message" />
+        @if (_records) { <h2 class="section-title">兑换记录</h2><IonNote>暂无兑换记录</IonNote> }
+        <h2 class="section-title">福利兑换</h2>
+        <IonGrid Class="reward-grid"><IonRow>@foreach (var reward in Rewards) { <IonCol Size="6"><IonCard Class="reward-card" Button="true" OnClick="Unavailable"><IonCardContent><div class="row-title">@reward.Title</div><p>@reward.Cost 金币</p><IonNote>@reward.Description</IonNote></IonCardContent></IonCard></IonCol> }</IonRow></IonGrid>
+    </div></IonContent>
+</IonPage>
+@code {
+    private bool _records;
+    private string? _message;
+    private void Unavailable() => _message = "福利活动暂未开放，敬请期待。";
+    private static readonly (string Title, string Description, string Icon)[] Tasks = [("看广告领金币 (0/3)", "每日可完成三次奖励任务", Ionicons.PlayCircle), ("看广告领下载次数", "每次完成可领取下载次数", Ionicons.DownloadOutline)];
+    private static readonly Reward[] Rewards = [new("7", "7天免广告特权", 90, "兑换后享受免广告追番"), new("30", "30天免广告特权", 360, "畅享30天追番时光"), new("forever", "永久免广告特权", 3000, "所有设备免广告"), new("gift", "精美手办（可自选）", 6000, "精美动漫周边礼物")];
+}

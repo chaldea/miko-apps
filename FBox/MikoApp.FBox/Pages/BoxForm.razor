@@ -1,0 +1,68 @@
+@page "/box-add"
+@page "/box-edit/{BoxId:long}"
+@page "/group-add"
+@page "/share-add"
+@inherits FBoxPage
+
+<IonPage>
+    <PageHeader Title="@Title">
+        <Actions>@if (Edit) { <IonButton Class="save-box" Disabled="@Store.Busy" OnClick="Submit">确定</IonButton> }</Actions>
+    </PageHeader>
+    <IonContent>
+        <PageStatus />
+        @if (Path == "/share-add")
+        {
+            <IonList Class="form-section"><IonItem><IonInput Class="share-input" Label="分享码" Placeholder="请输入分享码" @bind-Value="_number" /></IonItem></IonList>
+            <p class="hint">输入设备所有者提供的分享码，申请访问设备。</p>
+        }
+        else if (Path == "/group-add")
+        {
+            <IonList><IonItem><IonInput Class="group-name" Label="分组名称" Placeholder="请输入名称" @bind-Value="_alias" Maxlength="40" /></IonItem></IonList>
+        }
+        else
+        {
+            <IonList Class="form-section">
+                @if (!Edit)
+                {
+                    <IonItem><IonInput Class="box-number" Label="设备序列号" @bind-Value="_number" Type="number" Maxlength="12" /></IonItem>
+                    <IonItem><IonInput Class="box-password" Label="连接密码" @bind-Value="_password" Type="password" /></IonItem>
+                }
+                <IonItem><IonInput Class="box-alias" Label="@(Edit ? "别名" : "设备别名")" @bind-Value="_alias" Maxlength="80" /></IonItem>
+            </IonList>
+            <IonList Class="form-section"><IonItem><IonSelect Class="box-group" Label="选择分组" InterfaceHeader="分组" OkText="确定" CancelText="取消" @bind-Value="_group">@foreach (var group in Store.Groups) { <IonSelectOption Value="@group.Name">@group.Name</IonSelectOption> }</IonSelect></IonItem></IonList>
+            @if (Edit) { <IonList><IonItem><IonTextarea Label="备注" @bind-Value="_memo" Rows="3" /></IonItem></IonList> }
+        }
+        @if (!Edit) { <IonButton Class="submit save-box" Expand="block" Disabled="@Store.Busy" OnClick="Submit">确定</IonButton> }
+    </IonContent>
+</IonPage>
+
+@code {
+    private string Path => NavigationManager?.CurrentPath ?? "";
+    private bool Edit => IsBoxPage("/box-edit");
+    private string Title => Edit ? "更新信息" : Path switch { "/group-add" => "新增分组", "/share-add" => "分享码添加", _ => "添加设备" };
+    private string? _number, _password, _alias, _memo;
+    private string? _group = "Default";
+    protected override void OnInitialized()
+    {
+        base.OnInitialized(); Store.Error = null; Store.Notice = null;
+        if (Path == "/box-add") _number = NavigationManager?.GetState<BoxRegistrationState>()?.Number;
+        if (Edit && CurrentBox is { } box) { _number = box.Number; _alias = box.Title; _memo = box.Memo; _group = Store.GroupOf(box)?.Name; }
+    }
+    private async Task Submit()
+    {
+        if (Edit && CurrentBox is null) return;
+        var ok = await Run(async () =>
+        {
+            if (Path == "/group-add") await Store.AddGroupAsync(_alias ?? "");
+            else if (Path == "/share-add")
+            {
+                if (string.IsNullOrWhiteSpace(_number)) throw new InvalidOperationException("请输入分享码。");
+                if (Store.Demo) { if (!Store.Boxes.Any(b => ("DEMO-" + b.Number[^6..]).Equals(_number.Trim(), StringComparison.OrdinalIgnoreCase))) throw new InvalidOperationException("演示分享码无效，请从设备的分享页面生成。"); }
+                else await Store.Client.PostAsync("/api/client/v2/apply/box/code", new { code = _number });
+            }
+            else if (Edit && CurrentBox is { } box) await Store.EditBoxAsync(box, _alias ?? "", _group ?? "Default", _memo ?? "");
+            else await Store.AddBoxAsync(_number ?? "", _password ?? "", _alias ?? "", _group ?? "Default");
+        }, Path == "/share-add" ? (Store.Demo ? "演示申请已验证" : "访问申请已提交") : "保存成功");
+        if (ok && Path != "/share-add") Go(Edit ? BoxRoute("/information") : "/devices");
+    }
+}

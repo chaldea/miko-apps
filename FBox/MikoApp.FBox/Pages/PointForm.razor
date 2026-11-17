@@ -1,0 +1,96 @@
+@page "/point-add/{BoxId:long}"
+@page "/alarm-add/{BoxId:long}"
+@page "/point/{BoxId:long}/{PointId:long}"
+@inherits FBoxPage
+
+<IonPage>
+    <PageHeader Title="@(Detail ? "监控点详情" : Alarm ? "新增报警条目" : "新增监控点")" BackHref="@BoxRoute("/monitor")"><Actions>@if (!Detail) { <IonButton Class="save-point" Disabled="@Store.Busy" OnClick="Save">完成</IonButton> }</Actions></PageHeader>
+    <IonContent>
+        <PageStatus />
+        @if (Detail && CurrentPoint is { } point)
+        {
+            <IonList Class="form-section"><SettingRow Label="监控点名称" Value="@point.Name" /><SettingRow Label="所属分组" Value="@point.Group" /><SettingRow Label="地址" Value="@($"{point.Register} {point.Address}")" /><SettingRow Label="当前值" Value="@(CurrentBox?.Online == true ? point.Value ?? "等待数据" : "设备离线无法读取")" /><SettingRow Label="读写设置" Value="@(point.Writable ? "读写" : "只读")" /></IonList>
+            <IonList><IonItem><IonInput Class="write-value" Label="写入值" @bind-Value="_value" Type="number" /></IonItem></IonList>
+            <IonButton Class="submit write-point" Expand="block" Disabled="@(CurrentBox?.Online != true || !point.Writable || Store.Busy)" OnClick="Write">写入</IonButton>
+            <p class="hint">仅在线且有写入权限的监控点可写入。</p>
+        }
+        else if (!Detail && CurrentBox is not null)
+        {
+            <IonList Class="form-section">
+                <IonItem><IonInput Class="point-name-input" Label="@(Alarm ? "报警名称" : "监控点名称")" @bind-Value="_name" Maxlength="64" /></IonItem>
+                <IonItem><IonSelect Label="所属分组" @bind-Value="_group" OkText="确定" CancelText="取消">@foreach (var group in _groups) { <IonSelectOption Value="@group.Key">@group.Value</IonSelectOption> }</IonSelect></IonItem>
+                <IonItem><IonToggle Justify="space-between" @bind-Checked="_tag">使用地址标签</IonToggle></IonItem>
+            </IonList>
+            @if (_tag) { <IonList><IonItem><IonSelect Label="地址标签" @bind-Value="_tagId" Placeholder="选择已有标签" OkText="确定" CancelText="取消">@foreach (var tag in _tags) { <IonSelectOption Value="@tag.Number("uid").ToString()">@tag.Text("name")</IonSelectOption> }</IonSelect></IonItem></IonList>@if (_tags.Count == 0) { <p class="hint">设备暂无地址标签，可关闭此项手动填写地址。</p> } }
+            <IonList Class="form-section">
+                <IonItem><IonSelect Label="数据类型" @bind-Value="_type" OkText="确定" CancelText="取消"><IonSelectOption Value="bit">位</IonSelectOption><IonSelectOption Value="word">16 位整数</IonSelectOption></IonSelect></IonItem>
+                <SettingRow Label="连接设备" Value="Local" />
+                <IonItem><IonSelect Label="地址类型" @bind-Value="_register" OkText="确定" CancelText="取消"><IonSelectOption Value="LB">LB</IonSelectOption><IonSelectOption Value="LW">LW</IonSelectOption></IonSelect></IonItem>
+            </IonList>
+            <IonList Class="form-section"><IonItem><IonInput Class="point-address-input" Label="主地址" @bind-Value="_address" Type="number" /></IonItem><SettingRow Label="格式范围" Value="DDDDDD(0~799999)" /></IonList>
+            @if (Alarm)
+            {
+                <IonList>@if (_type == "bit") { <IonItem><IonToggle @bind-Checked="_on" Justify="space-between">位设置 ON</IonToggle></IonItem> } else { <IonItem><IonInput Label="等于此值时报警" Type="number" @bind-Value="_threshold" /></IonItem> }<IonItem><IonInput Class="alarm-content" Label="报警内容" @bind-Value="_memo" /></IonItem></IonList>
+            }
+            else
+            {
+                <IonList Class="form-section"><IonItem><IonInput Label="标签1" @bind-Value="_trueLabel" /></IonItem><IonItem><IonInput Label="标签0" @bind-Value="_falseLabel" /></IonItem></IonList>
+                <IonList Class="form-section"><IonItem><IonToggle @bind-Checked="_saving" Justify="space-between">省流量模式</IonToggle></IonItem></IonList>
+                <IonList><IonItem><IonSelect Label="读写设置" @bind-Value="_permission" OkText="确定" CancelText="取消"><IonSelectOption Value="read">只读</IonSelectOption><IonSelectOption Value="write">读写</IonSelectOption></IonSelect></IonItem><IonItem><IonInput Label="备注" @bind-Value="_memo" /></IonItem></IonList>
+            }
+        }
+        else if (!Store.Busy) { <EmptyState Text="设备或监控点不存在" /> }
+    </IonContent>
+</IonPage>
+
+@code {
+    [Parameter] public long? PointId { get; set; }
+    private MonitorPoint? CurrentPoint => CurrentBox?.Points.FirstOrDefault(point => point.Id == PointId);
+    private bool Alarm => IsBoxPage("/alarm-add");
+    private bool Detail => PointId.HasValue;
+    private string? _name, _memo, _value, _group = "默认组", _type = "bit", _register = "LB", _address = "0", _permission = "read";
+    private bool _tag, _saving, _on;
+    private string? _trueLabel = "1", _falseLabel = "0", _tagId;
+    private List<JsonNode> _tags = [];
+    private Dictionary<string, string> _groups = new() { ["默认组"] = "默认组" };
+    private string? _threshold = "0";
+    protected override void OnInitialized() { base.OnInitialized(); Store.Error = null; Store.Notice = null; }
+    protected override async Task OnInitializedAsync()
+    {
+        if (CurrentBox is not { } box) return;
+        if (Detail)
+        {
+            if (CurrentPoint is null) await Run(() => Store.LoadPointsAsync(box, startMonitoring: false));
+            return;
+        }
+        if (Store.Demo) return;
+        await Run(async () =>
+        {
+            _tags = (await Store.Client.GetAsync($"/api/v2/box/{box.Id}/address/tag")).Items().ToList();
+            if (Alarm)
+            {
+                var groups = await Store.Client.PostAsync("/api/v2/alarm/group/get", new { boxId = box.Id });
+                _groups = groups.Items().ToDictionary(g => g.Number("uid").ToString(), g => g.Text("name"));
+                _group = _groups.Keys.FirstOrDefault();
+            }
+        });
+    }
+    private async Task Save()
+    {
+        if (CurrentBox is not { } box) return;
+        var ok = await Run(async () =>
+        {
+            if (_tag && !_tags.Any(t => t.Text("uid") == _tagId)) throw new InvalidOperationException("请选择有效地址标签，或关闭地址标签填写主地址。");
+            if (!int.TryParse(_address, out var address) || address is < 0 or > 799999) throw new InvalidOperationException("主地址必须为 0~799999 的整数。");
+            if (Alarm)
+            {
+                if (!Store.Demo && !_groups.ContainsKey(_group ?? "")) throw new InvalidOperationException("请选择设备已有的报警分组。");
+                if (!double.TryParse(_threshold, out var threshold) || !double.IsFinite(threshold)) throw new InvalidOperationException("请输入有效报警值。");
+                await Store.AddAlarmAsync(box, new() { Name = _name ?? "", Message = _memo ?? "", Register = _register ?? "LB", Address = address, On = _on, DataType = _type == "bit" ? 0 : 1, Threshold = threshold, GroupId = long.TryParse(_group, out var groupId) ? groupId : 0, AddressTagId = _tag && long.TryParse(_tagId, out var alarmTag) ? alarmTag : 0 });
+            }
+            else await Store.AddPointAsync(box, new() { Name = _name ?? "", Group = _group ?? "默认组", Register = _register ?? "LB", Address = address, Writable = _permission == "write", Memo = _memo ?? "", DataType = _type == "bit" ? 0 : 1, TrueLabel = _trueLabel ?? "1", FalseLabel = _falseLabel ?? "0", AddressTagId = _tag && long.TryParse(_tagId, out var tagId) ? tagId : 0 }, _saving);
+        }, "保存成功");
+        if (ok) Go(BoxRoute(Alarm ? "/alarms" : "/monitor"));
+    }
+    private async Task Write() { if (CurrentBox is { } box && CurrentPoint is { } point) await Run(() => Store.WriteAsync(box, point, _value ?? ""), "写入成功"); }
+}

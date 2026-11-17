@@ -1,0 +1,59 @@
+name: Showcase · GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "showcase/**"
+      - ".github/workflows/showcase.yml"
+  pull_request:
+    paths:
+      - "showcase/**"
+      - ".github/workflows/showcase.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: showcase
+    env:
+      SOURCE_REF: ${{ github.head_ref || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # The catalog checks and static build use only Node.js built-in modules.
+      # Playwright is needed only for local cover generation and browser tests.
+      - name: Validate app catalog
+        run: node --test scripts/catalog.test.mjs
+      - name: Build static site
+        run: npm run build
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
+        with:
+          path: showcase/dist
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

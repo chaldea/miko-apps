@@ -1,0 +1,92 @@
+@page "/server-settings"
+@page "/username"
+@page "/password"
+@page "/feedback"
+@page "/cloud-settings"
+@page "/cancel-account"
+@inherits FBoxPage
+
+<IonPage>
+    <PageHeader Title="@Title" BackHref="@BackHref" />
+    <IonContent>
+        <PageStatus />
+        @if (Path == "/server-settings")
+        {
+            <IonList>
+                <IonItem><IonToggle Class="demo-mode" Checked="_demo" CheckedChanged="DemoChanged" Disabled="@Store.Busy" Justify="space-between">演示模式</IonToggle></IonItem>
+            </IonList>
+            @if (_demo)
+            {
+                <p class="hint">演示模式仅使用本机保存的离线数据。返回登录页后点击“体验演示”进入应用。</p>
+            }
+            else
+            {
+                <IonList>
+                    <IonItem><IonInput Class="server-api" Label="API 地址" LabelPlacement="stacked" Placeholder="https://api.example.com" @bind-Value="_api" /></IonItem>
+                    <IonItem><IonInput Class="server-identity" Label="身份服务地址" LabelPlacement="stacked" Placeholder="https://identity.example.com" @bind-Value="_identity" /></IonItem>
+                    <IonItem><IonInput Class="server-client-id" Label="客户端 ID" LabelPlacement="stacked" @bind-Value="_clientId" /></IonItem>
+                    <IonItem><IonInput Class="server-client-secret" Label="客户端密钥（可选）" LabelPlacement="stacked" Type="password" @bind-Value="_secret" /></IonItem>
+                    <IonItem><IonSelect Label="实时协议" @bind-Value="_protocol" OkText="确定" CancelText="取消"><IonSelectOption Value="core">SignalR Core</IonSelectOption><IonSelectOption Value="legacy">SignalR Legacy</IonSelectOption></IonSelect></IonItem>
+                </IonList>
+                <p class="hint">保存后进入登录页面。客户端密钥仅在本次运行期间有效，重启后如有需要请重新填写。</p>
+            }
+        }
+        else if (Path == "/username") { <IonList><IonItem><IonInput Class="new-username" Label="用户名" @bind-Value="_name" Maxlength="40" /></IonItem></IonList> }
+        else if (Path == "/password")
+        {
+            <IonList><IonItem><IonInput Label="原密码" Type="password" @bind-Value="_old" /></IonItem><IonItem><IonInput Label="新密码" Type="password" @bind-Value="_password" /></IonItem><IonItem><IonInput Label="确认密码" Type="password" @bind-Value="_confirm" /></IonItem></IonList>
+        }
+        else if (Path == "/feedback") { <IonList><IonItem><IonTextarea Class="feedback-input" Label="问题描述" LabelPlacement="stacked" Placeholder="请描述遇到的问题" @bind-Value="_message" Rows="7" Maxlength="2000" Counter="true" /></IonItem></IonList><p class="hint">反馈保存在本机，便于复制后提交给服务维护人员。</p> }
+        else if (Path == "/cloud-settings") { <IonList><IonItem><IonInput Label="App Key" LabelPlacement="stacked" @bind-Value="_name" /></IonItem><IonItem><IonInput Label="App Secret" LabelPlacement="stacked" Type="password" @bind-Value="_secret" /></IonItem></IonList><p class="hint">绑定萤石云开放平台账号，用于访问设备下的摄像头。</p> }
+        else { <p class="hint">注销将失去账号及设备访问权限。请确认已经处理所有设备与共享关系。</p><IonList><IonItem><IonInput Label="登录密码" Type="password" @bind-Value="_password" /></IonItem><IonItem><IonToggle @bind-Checked="_agree" Justify="space-between">我已了解注销后果</IonToggle></IonItem></IonList> }
+        <IonButton Class="submit save-settings" Expand="block" Disabled="@Store.Busy" OnClick="Submit">@(Path == "/cancel-account" ? "申请注销" : "保存")</IonButton>
+    </IonContent>
+</IonPage>
+
+@code {
+    private string Path => NavigationManager?.CurrentPath ?? "";
+    private string Title => Path switch { "/server-settings" => "系统设置", "/username" => "修改用户名", "/password" => "修改密码", "/feedback" => "问题反馈", "/cloud-settings" => "萤石云账号设置", _ => "注销账户" };
+    private string BackHref => Path == "/server-settings" ? (Store.Authenticated ? "/account" : "/login") : "/settings";
+    private string? _api, _identity, _clientId, _secret, _name, _old, _password, _confirm, _message, _protocol;
+    private bool _agree, _demo;
+    private void DemoChanged(bool value) { _demo = value; StateHasChanged(); }
+    protected override void OnInitialized()
+    {
+        base.OnInitialized(); Store.Error = null; Store.Notice = null;
+        _api = Store.Options.ApiUrl; _identity = Store.Options.IdentityUrl; _clientId = Store.Options.ClientId; _protocol = Store.Options.SignalRVersion;
+        _secret = Store.Options.ClientSecret; _demo = Store.Options.Demo;
+        if (Path == "/username") _name = Store.Username;
+    }
+    private async Task Submit()
+    {
+        var saved = await Run(async () =>
+        {
+            switch (Path)
+            {
+                case "/server-settings":
+                    await Store.ConfigureAsync(_demo, _api, _identity, _clientId, _secret, _protocol);
+                    break;
+                case "/username":
+                    if (string.IsNullOrWhiteSpace(_name)) throw new InvalidOperationException("用户名不能为空。");
+                    if (!Store.Demo) await Store.Client.PostAsync("/api/account/changeusername", new { userName = _name.Trim() }, true);
+                    Store.Username = _name.Trim(); if (Store.Demo) { Store.State.Username = Store.Username; Store.Save(); } break;
+                case "/password":
+                    if (Store.Demo) throw new InvalidOperationException("演示账户没有密码，请登录真实服务后修改。");
+                    if (string.IsNullOrWhiteSpace(_old) || (_password?.Length ?? 0) < 8 || _password != _confirm) throw new InvalidOperationException("请填写原密码，且新密码至少 8 位、两次输入一致。");
+                    await Store.Client.PostAsync("/api/account/changepwd", new { oldPassword = _old, newPassword = _password, confirmPassword = _confirm }, true); break;
+                case "/feedback":
+                    if (string.IsNullOrWhiteSpace(_message)) throw new InvalidOperationException("请输入问题描述。");
+                    Store.State.Feedback.Add(_message.Trim()); Store.Save(); break;
+                case "/cloud-settings":
+                    if (Store.Demo) throw new InvalidOperationException("请登录真实服务后绑定萤石云账号。");
+                    if (string.IsNullOrWhiteSpace(_name) || string.IsNullOrWhiteSpace(_secret)) throw new InvalidOperationException("请填写 App Key 与 App Secret。");
+                    await Store.Client.PutAsync("/api/client/ezviz/bind", new { appKey = _name, secret = _secret }); break;
+                case "/cancel-account":
+                    if (Store.Demo) throw new InvalidOperationException("演示账户无需注销。");
+                    if (!_agree || string.IsNullOrWhiteSpace(_password)) throw new InvalidOperationException("请填写密码并确认注销后果。");
+                    await Store.Client.PostAsync("/api/account/requestCancelAccount", new { password = _password }, true); break;
+            }
+        }, Path == "/feedback" ? "反馈已保存到本机" : "保存成功");
+        if (saved && Path == "/server-settings") GoRoot("/login");
+    }
+}

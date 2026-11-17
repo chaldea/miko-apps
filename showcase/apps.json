@@ -1,0 +1,52 @@
+{
+  "repository": "chaldea/miko-apps",
+  "sourceRef": "main",
+  "apps": [
+    {
+      "id": "anime",
+      "name": "Anime",
+      "category": "影音娱乐",
+      "description": "从发现新番到沉浸追番。探索番剧目录、每周排期与原生视频播放，把喜爱的故事随身带走。",
+      "tags": ["番剧", "视频播放", "Miko.Ionic"],
+      "platforms": ["Desktop", "Android", "iOS"],
+      "sourcePath": "Anime",
+      "cover": {
+        "background": "#eee9fa",
+        "accent": "#7552bf",
+        "eyebrow": "ENTERTAINMENT / 01",
+        "tagline": "Your next story\nawaits.",
+        "screenshots": [
+          "assets/screenshots/anime/home.png",
+          "assets/screenshots/anime/timetable.png"
+        ]
+      },
+      "capture": {
+        "project": "Anime/MikoApp.Anime.Verification",
+        "files": ["02-home.png", "08-timetable.png"]
+      }
+    },
+    {
+      "id": "fbox",
+      "name": "FBox",
+      "category": "物联网",
+      "description": "让设备状态一目了然。连接 IoT 网关，查看实时监控、报警与历史曲线，轻松管理每一台设备。",
+      "tags": ["IoT", "实时监控", "Miko.Ionic"],
+      "platforms": ["Desktop", "Android", "iOS"],
+      "sourcePath": "FBox",
+      "cover": {
+        "background": "#e6eff4",
+        "accent": "#236a92",
+        "eyebrow": "CONNECTED DEVICES / 02",
+        "tagline": "Everything connected.\nAll in view.",
+        "screenshots": [
+          "assets/screenshots/fbox/devices.png",
+          "assets/screenshots/fbox/monitor.png"
+        ]
+      },
+      "capture": {
+        "project": "FBox/MikoApp.FBox.Verification",
+        "files": ["01-devices.png", "10-monitor-100.png"]
+      }
+    }
+  ]
+}

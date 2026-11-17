@@ -1,0 +1,16 @@
+@page "/"
+@page "/splash"
+@namespace MikoApp.Anime.Pages
+@inherits AsyncPage
+<IonPage><IonContent><div class="splash-page">
+    <img class="splash-art" src="res://Assets/splash.jpg" />
+    <h1 class="splash-title">Anime</h1><IonNote>每一份热爱，都有回响</IonNote>
+    <IonButton Class="enter-app" Fill="clear" OnClick="Enter">进入追番世界</IonButton>
+</div></IonContent></IonPage>
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        try { await Task.Delay(1400, Lifetime.Token); Enter(); } catch (OperationCanceledException) { }
+    }
+    private void Enter() => NavigationManager?.NavigateTo("/home");
+}

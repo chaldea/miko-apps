@@ -1,0 +1,52 @@
+@page "/remote/{BoxId:long}"
+@page "/vnc-connect"
+@page "/scan"
+@inherits FBoxPage
+@using Miko.Components.Vnc
+@using Miko.Components.Scanner
+@using Miko.Components.Camera
+
+<IonPage>
+    <PageHeader Title="@(Scan ? "扫码添加" : CurrentBox?.Title ?? "远程监控")" />
+    <IonContent>
+        <PageStatus />
+        @if (Scan)
+        {
+            <div style="@_scannerStyle"><MikoBarcodeScanner Hint="将设备二维码放入框内" Texts="@_cameraTexts" CodeScanned="Scanned" Close="@(() => Go("/devices"))" /></div>
+            <IonButton Expand="block" Href="/box-add">手动输入序列号</IonButton>
+            @if (_scanResult is not null) { <p class="hint">识别结果：@_scanResult</p> }
+        }
+        else if (Store.Demo) { <EmptyState Icon="desktop-outline" Text="演示模式不连接远程设备" /><p class="hint">连接真实服务并登录后，可使用远程监控。</p> }
+        else if (NavigationManager?.CurrentPath == "/vnc-connect") { <MikoVnc Texts="@VncTexts.Chinese" AutoConnect="false" Style="@_vncStyle" /> }
+        else if (_target is not null) { <p class="hint">局域网直连 · @_target.Text("alias")</p><MikoVnc @key="_target" Host="@_target.Text("ip")" Port="@((int)(_target.Number("port") > 0 ? _target.Number("port") : 5900))" Texts="@VncTexts.Chinese" AutoConnect="false" Style="@_vncStyle" /> }
+        else
+        {
+            @if (_devices.Count == 0 && !Store.Busy && Store.Error is null) { <EmptyState Icon="hardware-chip-outline" Text="设备没有添加任何支持VNC设备" /> }
+            <IonList>@foreach (var device in _devices) { <IonItem @key="device" Button="true" Detail="true" OnClick="() => Connect(device)"><IonLabel><h2>@device.Text("alias", device.Text("plcName"))</h2><p>@device.Text("ip")</p></IonLabel></IonItem> }</IonList>
+            @if (_devices.Count > 0) { <p class="hint">请选择可从当前网络访问的设备。跨公网访问需要先建立设备 VPN。</p> }
+            <IonButton Fill="clear" Expand="block" Href="/vnc-connect">连接局域网 VNC 设备</IonButton>
+        }
+    </IonContent>
+</IonPage>
+@code {
+    private bool Scan => NavigationManager?.CurrentPath == "/scan";
+    private string? _scanResult;
+    private List<JsonNode> _devices = [];
+    private JsonNode? _target;
+    protected override async Task OnInitializedAsync()
+    {
+        if (!IsBoxPage("/remote") || Store.Demo || CurrentBox is not { } box) return;
+        await Run(async () => _devices = (await Store.Client.GetAsync($"/api/v2/box/{box.Id}/plcdevice?getshutdown=false")).Items().Where(d => d.Number("plcId") == 266).ToList());
+    }
+    private void Connect(JsonNode device) { _target = device; StateHasChanged(); }
+    private readonly Style _scannerStyle = new() { Height = Length.Px(490), Width = Length.Percent(100) };
+    private readonly CameraViewTexts _cameraTexts = new() { NoCamera = "当前设备没有可用相机，请手动输入序列号", PermissionDenied = "请在系统设置中允许使用相机后重试", Unavailable = "相机被其他应用占用", Failed = "相机启动失败", Retry = "重试" };
+    private readonly Style _vncStyle = new() { Height = Length.Px(560), Width = Length.Percent(100) };
+    private void Scanned(BarcodeResult code)
+    {
+        _scanResult = code.Text;
+        var match = System.Text.RegularExpressions.Regex.Match(code.Text, @"(?<!\d)\d{12}(?!\d)");
+        if (match.Success) NavigationManager?.NavigateTo("/box-add", new BoxRegistrationState(match.Value));
+        else { Store.Error = "二维码中没有有效的 12 位设备序列号，请手动输入。"; StateHasChanged(); }
+    }
+}

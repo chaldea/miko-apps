@@ -1,0 +1,12 @@
+@if (Store.Busy)
+{
+    <div class="status loading"><IonSpinner Name="dots" /><span>正在加载…</span></div>
+}
+@if (!string.IsNullOrEmpty(Store.Error))
+{
+    <div class="status error"><IonIcon Icon="alert-circle-outline" /><span>@Store.Error</span></div>
+}
+@if (!string.IsNullOrEmpty(Store.Notice))
+{
+    <div class="status success"><IonIcon Icon="checkmark-circle-outline" /><span>@Store.Notice</span></div>
+}

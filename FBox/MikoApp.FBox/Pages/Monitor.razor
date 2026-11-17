@@ -1,0 +1,49 @@
+@page "/monitor/{BoxId:long}"
+@inherits FBoxPage
+
+<IonPage>
+    <PageHeader Title="@CurrentBox?.Title"><Actions><IonButton OnClick="Refresh" Disabled="@Store.Busy"><IconOnly><IonIcon Icon="refresh-outline" /></IconOnly></IonButton><IonButton OnClick="@(() => Go(BoxRoute("/information")))"><IconOnly><IonIcon Icon="ellipsis-horizontal" /></IconOnly></IonButton></Actions></PageHeader>
+    <IonContent>
+        <Fixed>@if (CurrentBox is not null) { <IonFab Vertical="bottom" Horizontal="end"><IonFabButton Class="add-point" Color="danger" Href="@BoxRoute("/point-add")" Size="small"><IonIcon Icon="add" /></IonFabButton></IonFab> }</Fixed>
+        <ChildContent>
+            <PageStatus />
+            <IonSearchbar Class="point-search" Placeholder="监控点名称" @bind-Value="_query" />
+            @if (CurrentBox is { } box)
+            {
+                @foreach (var group in box.Points.Where(p => string.IsNullOrWhiteSpace(_query) || p.Name.Contains(_query, StringComparison.OrdinalIgnoreCase)).GroupBy(p => p.Group))
+                {
+                    <button class="group-heading" @onclick="() => Toggle(group.Key)"><IonIcon Icon="@(_collapsed.Contains(group.Key) ? "caret-forward" : "caret-down")" /><span>@group.Key</span></button>
+                    @if (!_collapsed.Contains(group.Key))
+                    {
+                        @foreach (var point in group)
+                        {
+                            <button class="point-row" @key="point.Id" @onclick="() => Open(point)"><span class="point-name">@point.Name</span><div class="point-state">@if (!box.Online) { <span class="red-dot"></span> }<span>@(!box.Online ? "设备离线无法读取" : point.Value ?? "等待实时数据")</span></div><span class="point-address">@point.Register @point.Address</span></button>
+                        }
+                    }
+                }
+                @if (box.Points.Count == 0 && !Store.Busy) { <EmptyState Icon="pulse-outline" Text="还没有监控点" /> }
+            }
+            else { <EmptyState Text="请先选择设备"><IonButton Href="/devices">设备列表</IonButton></EmptyState> }
+        </ChildContent>
+    </IonContent>
+</IonPage>
+
+@code {
+    private string? _query;
+    private readonly HashSet<string> _collapsed = [];
+    private Box? _box;
+    protected override async Task OnInitializedAsync() { _box = CurrentBox; if (_box is not null) await Run(() => Store.LoadPointsAsync(_box)); }
+    private async Task Refresh()
+    {
+        if (_box is null) return;
+        await Run(async () =>
+        {
+            if (!Store.Demo && Store.Authenticated && !Store.Realtime.Connected) await Store.Realtime.StartAsync();
+            await Store.LoadPointsAsync(_box);
+        });
+    }
+    private void Toggle(string name) { if (!_collapsed.Add(name)) _collapsed.Remove(name); }
+    private void Open(MonitorPoint point) => Go($"/point/{BoxId}/{point.Id}");
+    public override void Dispose() { base.Dispose(); if (_box is not null) _ = StopAsync(); }
+    private async Task StopAsync() { try { await Store.StopPointsAsync(_box!); } catch (Exception) { /* Subscription expires server-side when offline. */ } }
+}

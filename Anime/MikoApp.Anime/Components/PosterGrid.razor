@@ -1,0 +1,22 @@
+@namespace MikoApp.Anime.Components
+@inject Miko.Routing.NavigationManager Navigation
+
+<IonGrid Class="poster-grid">
+    <IonRow>
+        @foreach (var title in Titles)
+        {
+            <IonCol @key="title.Id" Class="poster-column">
+                <IonCard Class="poster-card" Button="true" OnClick="@(() => Navigation.NavigateTo($"/detail/{title.Id}"))">
+                    <img class="poster-image" src="@title.PosterSource" placeholder="res://Assets/poster-placeholder.svg" />
+                    <div class="poster-title">@title.Title</div>
+                    <IonNote Class="poster-note">@(ShowSchedule ? $"{title.UpdateTime} 更新" : title.Genre)</IonNote>
+                </IonCard>
+            </IonCol>
+        }
+    </IonRow>
+</IonGrid>
+
+@code {
+    [Parameter] public IReadOnlyList<AnimeTitle> Titles { get; set; } = [];
+    [Parameter] public bool ShowSchedule { get; set; }
+}

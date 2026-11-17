@@ -1,0 +1,21 @@
+@page "/information/{BoxId:long}"
+@inherits FBoxPage
+
+<IonPage>
+    <PageHeader Title="@CurrentBox?.Title"><Actions><IonButton OnClick="@(() => Go(BoxRoute("/box-edit")))"><IconOnly><IonIcon Icon="create-outline" /></IconOnly></IonButton></Actions></PageHeader>
+    <IonContent>
+        <PageStatus />
+        @if (CurrentBox is { } box)
+        {
+            <IonList Class="form-section"><SettingRow Label="设备别名" Value="@box.Title" Href="@BoxRoute("/box-edit")" /></IonList>
+            <IonList Class="form-section"><SettingRow Label="设备地址" Value="@box.Address" Href="@BoxRoute("/location")" /></IonList>
+            <IonList Class="form-section"><SettingRow Label="分享信息" Href="@BoxRoute("/shared-users")" /></IonList>
+            <IonList Class="form-section"><SettingRow Label="连接设备" Href="@BoxRoute("/plc-devices")" /><SettingRow Label="系统设置" Href="@BoxRoute("/system-settings")" /></IonList>
+            <IonList Class="form-section">
+                <SettingRow Label="产品序列号" Value="@box.Number" /><SettingRow Label="联网方式" Value="@box.Network" /><SettingRow Label="状态" Value="@(box.Online ? "在线" : "离线")" /><SettingRow Label="所属分组" Value="@Store.GroupOf(box)?.Name" Href="@BoxRoute("/box-edit")" /><SettingRow Label="备注" Value="@box.Memo" Href="@BoxRoute("/box-edit")" />
+            </IonList>
+            <IonList Class="form-section"><SettingRow Label="基本信息" Href="@BoxRoute("/basic-information")" /></IonList>
+        }
+        else { <EmptyState Text="请先选择设备" /> }
+    </IonContent>
+</IonPage>
